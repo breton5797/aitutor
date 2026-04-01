@@ -11,6 +11,7 @@ import AppLayout from '../../components/AppLayout';
 import styles from './history.module.css';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { getSegment, getSubject } from '../../config/segments';
 
 export default function HistoryPage() {
   const router = useRouter();
@@ -103,17 +104,24 @@ export default function HistoryPage() {
               <section className={styles.section}>
                 <h2 className={styles.sectionTitle}>최근 질문 목록</h2>
                 <div className={styles.qList}>
-                  {data.recentQuestions.map((q) => (
-                    <div key={q.id} className={styles.qItem}>
-                      <span className={styles.qEmoji}>{SUBJECT_EMOJIS[q.conversation.subject as keyof typeof SUBJECT_EMOJIS]}</span>
-                      <div className={styles.qContent}>
-                        <p className={styles.qText}>{q.content}</p>
-                        <p className={styles.qMeta}>
-                          {SUBJECT_LABELS[q.conversation.subject as keyof typeof SUBJECT_LABELS]} · {formatDistanceToNow(new Date(q.createdAt), { addSuffix: true, locale: ko })}
-                        </p>
+                  {data.recentQuestions.map((q) => {
+                    const seg = q.conversation?.segmentId ? getSegment(q.conversation.segmentId) : null;
+                    const subj = q.conversation?.segmentId && q.conversation?.subjectId ? getSubject(q.conversation.segmentId, q.conversation.subjectId) : null;
+                    const emoji = subj?.icon || (q.conversation?.subject ? SUBJECT_EMOJIS[q.conversation.subject as keyof typeof SUBJECT_EMOJIS] : '💬');
+                    const label = seg ? seg.name : (q.conversation?.subject ? SUBJECT_LABELS[q.conversation.subject as keyof typeof SUBJECT_LABELS] : '일반');
+
+                    return (
+                      <div key={q.id} className={styles.qItem}>
+                        <span className={styles.qEmoji}>{emoji}</span>
+                        <div className={styles.qContent}>
+                          <p className={styles.qText}>{q.content}</p>
+                          <p className={styles.qMeta}>
+                            {label} · {formatDistanceToNow(new Date(q.createdAt), { addSuffix: true, locale: ko })}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             )}

@@ -14,8 +14,8 @@ import styles from './dashboard.module.css';
 import AppLayout from '../../components/AppLayout';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
-
-const SUBJECTS: Subject[] = ['ENGLISH', 'MATH', 'SCIENCE', 'HISTORY'];
+import { getSegment, getSubject } from '../../config/segments';
+import { SEGMENTS } from '../../config/segments';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -124,32 +124,25 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {/* Subject Quick Start */}
+        {/* Segment Quick Start */}
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>{t.quick_subject}</h2>
-          <div className={styles.subjectGrid}>
-            {SUBJECTS.map((s) => {
-              const record = records.find((r) => r.subject === s);
-              return (
-                <button
-                  key={s}
-                  className={styles.subjectCard}
-                  style={{
-                    '--color': SUBJECT_COLORS[s],
-                    '--bg': SUBJECT_BG[s],
-                  } as React.CSSProperties}
-                  onClick={() => startChat(s)}
-                >
-                  <div className={styles.subjectEmoji}>{SUBJECT_EMOJIS[s]}</div>
-                  <div className={styles.subjectName}>{SUBJECT_LABELS[s]}</div>
-                  {record && (
-                    <div className={styles.subjectStats}>
-                      {(t.question_count || '').replace('{count}', String(record.questionCount))}
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+          <h2 className={styles.sectionTitle}>새로운 클래스 시작하기</h2>
+          <div className={styles.subjectGrid} style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+            {Object.values(SEGMENTS).slice(0,4).map((seg) => (
+              <button
+                key={seg.id}
+                className={styles.subjectCard}
+                style={{
+                  '--color': seg.accentColor,
+                  '--bg': seg.bgColor,
+                } as React.CSSProperties}
+                onClick={() => router.push(`/${seg.id}`)}
+              >
+                <div className={styles.subjectEmoji}>{seg.subjects[0]?.icon || '🎓'}</div>
+                <div className={styles.subjectName}>{seg.name}</div>
+                <div className={styles.subjectStats}>연령관/특화코스</div>
+              </button>
+            ))}
           </div>
         </section>
 
@@ -161,23 +154,31 @@ export default function DashboardPage() {
               <Link href="/history" className="btn btn-ghost btn-sm">{t.all_classes}</Link>
             </div>
             <div className={styles.convList}>
-              {conversationList.map((conv) => (
-                <Link key={conv.id} href={`/chat/${conv.id}`} className={styles.convItem}>
-                  <div className={styles.convEmoji}>{SUBJECT_EMOJIS[conv.subject]}</div>
-                  <div className={styles.convInfo}>
-                    <p className={styles.convTitle}>{conv.title}</p>
-                    <p className={styles.convDate}>
-                      {formatDistanceToNow(new Date(conv.updatedAt), { addSuffix: true, locale: ko })}
-                    </p>
-                  </div>
-                  <div
-                    className={styles.convSubject}
-                    style={{ color: SUBJECT_COLORS[conv.subject] }}
-                  >
-                    {SUBJECT_LABELS[conv.subject]}
-                  </div>
-                </Link>
-              ))}
+              {conversationList.map((conv) => {
+                const seg = conv.segmentId ? getSegment(conv.segmentId) : null;
+                const subj = conv.segmentId && conv.subjectId ? getSubject(conv.segmentId, conv.subjectId) : null;
+                const themeColor = seg?.accentColor || (conv.subject ? SUBJECT_COLORS[conv.subject] : '#ccc');
+                const label = seg ? seg.name : (conv.subject ? SUBJECT_LABELS[conv.subject] : '일반');
+                const emoji = subj?.icon || (conv.subject ? SUBJECT_EMOJIS[conv.subject] : '💬');
+                
+                return (
+                  <Link key={conv.id} href={`/chat/${conv.id}`} className={styles.convItem}>
+                    <div className={styles.convEmoji}>{emoji}</div>
+                    <div className={styles.convInfo}>
+                      <p className={styles.convTitle}>{conv.title}</p>
+                      <p className={styles.convDate}>
+                        {formatDistanceToNow(new Date(conv.updatedAt), { addSuffix: true, locale: ko })}
+                      </p>
+                    </div>
+                    <div
+                      className={styles.convSubject}
+                      style={{ color: themeColor, borderColor: themeColor + '50', padding: '2px 8px', border: '1px solid', borderRadius: '12px', fontSize: '12px' }}
+                    >
+                      {label}
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </section>
         )}

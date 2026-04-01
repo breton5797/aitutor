@@ -29,6 +29,9 @@ export interface Conversation {
   id: string;
   userId: string;
   subject: Subject;
+  segmentId?: string;
+  subjectId?: string;
+  courseId?: string;
   title: string;
   createdAt: string;
   updatedAt: string;

@@ -5,9 +5,12 @@ import Link from 'next/link';
 import { SEGMENTS } from '../../config/segments';
 import api from '../../lib/api';
 
-export default function SegmentPage({ params }: { params: { segmentId: string } }) {
+import { use } from 'react';
+
+export default function SegmentPage({ params }: { params: Promise<{ segmentId: string }> }) {
   const router = useRouter();
-  const segment = SEGMENTS[params.segmentId];
+  const { segmentId } = use(params);
+  const segment = SEGMENTS[segmentId];
   if (!segment) {
     notFound();
   }

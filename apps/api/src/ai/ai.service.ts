@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
 import { Subject, QuestionType, ExplainStyle } from '@prisma/client';
+import { getCourse, getSegment } from '../config/segments';
 
 @Injectable()
 export class AiService {
@@ -34,7 +35,7 @@ export class AiService {
       SCIENCE: '과학 개념과 원리를 쉽게 설명해. 실생활 예시를 들어 이해를 도와줘.',
       HISTORY: '역사적 사건의 배경과 흐름을 설명해. 시대 순서와 인과관계를 강조해.',
     };
-    return instructions[subject];
+    return instructions[subject] || '';
   }
 
   private buildSystemPrompt(
@@ -42,9 +43,23 @@ export class AiService {
     explainStyle?: ExplainStyle,
     studentName?: string,
     langCode: string = 'ko',
+    segmentId?: string,
+    subjectIdStr?: string,
+    courseId?: string,
   ): string {
-    const subjectName = this.getSubjectName(subject);
-    const subjectInstruction = this.getSubjectInstruction(subject);
+    // If it's a new segment-based prompt, return from config directly
+    if (segmentId && subjectIdStr && courseId) {
+      const course = getCourse(segmentId, subjectIdStr, courseId);
+      if (course) {
+        return course.systemPrompt + `\n\n[CRITICAL LANGUAGE INSTRUCTION]
+The user's language setting is '${langCode}'.
+If the language is NOT Korean, you MUST entirely translate your response to the user's language.
+If you are teaching a specific language (like English, Japanese), keep the examples in that language but explain in '${langCode}'.`;
+      }
+    }
+
+    const subjectName = subject ? this.getSubjectName(subject) : '학습';
+    const subjectInstruction = subject ? this.getSubjectInstruction(subject) : '';
     const styleGuide =
       explainStyle === 'SHORT'
         ? '설명은 핵심만 짧고 명확하게 해줘.'
@@ -104,8 +119,11 @@ All formatting should be natural for Text-To-Speech audio output targeting the l
     studentName?: string,
     mode: 'TEXT' | 'VOICE' = 'TEXT',
     lang: string = 'ko',
+    segmentId?: string,
+    subjectIdStr?: string,
+    courseId?: string,
   ): Promise<{ text: string; audioBase64?: string }> {
-    const systemPrompt = this.buildSystemPrompt(subject, explainStyle, studentName, lang);
+    const systemPrompt = this.buildSystemPrompt(subject, explainStyle, studentName, lang, segmentId, subjectIdStr, courseId);
 
     if (mode === 'VOICE') {
       // Build proper alternating history (user/model pairs only)

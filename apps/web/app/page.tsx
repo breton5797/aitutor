@@ -5,6 +5,7 @@ import styles from './landing.module.css';
 
 import { useLanguageStore } from '../lib/store';
 import { TRANSLATIONS, LANGUAGES, SupportedLanguage } from '../lib/i18n';
+import { SEGMENTS } from '../config/segments';
 
 const features = (t: any) => [
   {
@@ -24,12 +25,7 @@ const features = (t: any) => [
   },
 ];
 
-const subjects = [
-  { name: '영어', emoji: '📖', color: '#67e8f9', desc: '문법·독해·작문' },
-  { name: '수학', emoji: '📐', color: '#fcd34d', desc: '개념·문제풀이' },
-  { name: '과학', emoji: '🔬', color: '#6ee7b7', desc: '개념·원리·실험' },
-  { name: '역사', emoji: '📜', color: '#fca5a5', desc: '흐름·사건·인물' },
-];
+// Removed static subjects
 
 export default function LandingPage() {
   const { lang, setLang } = useLanguageStore();
@@ -97,16 +93,43 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Subjects */}
+      {/* Segments */}
       <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>{t.sec_subjects_title}</h2>
-        <p className={styles.sectionDesc}>{t.sec_subjects_desc}</p>
-        <div className={styles.subjectGrid}>
-          {subjects.map((s) => (
-            <div key={s.name} className={styles.subjectCard} style={{ '--subject-color': s.color } as React.CSSProperties}>
-              <div className={styles.subjectEmoji}>{s.emoji}</div>
-              <div className={styles.subjectName}>{s.name}</div>
-            </div>
+        <h2 className={styles.sectionTitle}>학습 연령/목적 선택 (Segments)</h2>
+        <p className={styles.sectionDesc}>원하는 학습 대상을 선택하여 특화된 AI 튜터를 만나보세요.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', padding: '0 20px', maxWidth: '1000px', margin: '0 auto' }}>
+          {Object.values(SEGMENTS).map((seg) => (
+            <Link href={`/${seg.id}`} key={seg.id} style={{
+              backgroundColor: seg.bgColor,
+              borderRadius: '16px',
+              padding: '24px',
+              textDecoration: 'none',
+              color: '#333',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+              border: `2px solid transparent`,
+              transition: 'all 0.2s',
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.borderColor = seg.accentColor)}
+            onMouseOut={(e) => (e.currentTarget.style.borderColor = 'transparent')}
+            >
+              <div style={{ fontSize: '14px', fontWeight: 'bold', color: seg.accentColor, marginBottom: '8px' }}>
+                {seg.targetAge}
+              </div>
+              <h3 style={{ fontSize: '24px', fontWeight: 'bold', margin: '0 0 8px 0' }}>{seg.name}</h3>
+              <p style={{ fontSize: '14px', color: '#555', margin: '0 0 16px 0', lineHeight: 1.5 }}>
+                {seg.description}
+              </p>
+              <button style={{
+                backgroundColor: seg.accentColor,
+                color: seg.textOnAccent,
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: '8px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                width: '100%'
+              }}>시작하기</button>
+            </Link>
           ))}
         </div>
       </section>

@@ -32,7 +32,10 @@ export class ConversationService {
       data: {
         userId,
         subject: dto.subject,
-        title: dto.title || this.getDefaultTitle(dto.subject),
+        segmentId: dto.segmentId,
+        subjectId: dto.subjectId,
+        courseId: dto.courseId,
+        title: dto.title || (dto.subject ? this.getDefaultTitle(dto.subject) : '새 대화'),
       },
     });
   }
@@ -92,11 +95,14 @@ export class ConversationService {
     try {
       const response = await this.aiService.generateResponse(
         aiMessages,
-        conversation.subject,
+        conversation.subject as any,
         profile?.explainStyle,
         user?.name,
         dto.mode || 'TEXT',
         dto.lang || 'ko',
+        conversation.segmentId || undefined,
+        conversation.subjectId || undefined,
+        conversation.courseId || undefined,
       );
       aiContent = response.text;
       audioBase64 = response.audioBase64;
@@ -115,14 +121,16 @@ export class ConversationService {
     });
 
     // 학습 기록 업데이트
-    await this.updateLearningRecord(userId, conversation.subject, questionType);
+    if (conversation.subject) {
+      await this.updateLearningRecord(userId, conversation.subject, questionType);
+    }
 
     // 🏆 Gamification: XP 추가 (채팅 메시지 1회당 10 XP)
     const statsResult = await this.statsService.addXP(userId, 10);
     
     // 💡 Recommendation: 오답일 경우 분석 및 추천 로직 가동
     let recommendation: any = null;
-    if (questionType === 'wrong_answer') {
+    if (questionType === 'wrong_answer' && conversation.subject) {
       recommendation = await this.recService.evaluateAfterAnswer(userId, conversation.subject, false);
     }
 

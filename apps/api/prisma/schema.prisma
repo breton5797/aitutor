@@ -112,7 +112,10 @@ model Conversation {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subject   Subject
+  subject   Subject? // Make optional for backward compatibility
+  segmentId String?
+  subjectId String?
+  courseId  String?
   title     String   @default("새 대화")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

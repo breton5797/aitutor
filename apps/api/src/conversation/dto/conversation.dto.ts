@@ -3,7 +3,20 @@ import { Subject } from '@prisma/client';
 
 export class CreateConversationDto {
   @IsEnum(Subject)
-  subject: Subject;
+  @IsOptional()
+  subject?: Subject;
+
+  @IsString()
+  @IsOptional()
+  segmentId?: string;
+
+  @IsString()
+  @IsOptional()
+  subjectId?: string;
+
+  @IsString()
+  @IsOptional()
+  courseId?: string;
 
   @IsString()
   @IsOptional()

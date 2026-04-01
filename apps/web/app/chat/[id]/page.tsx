@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore, useLanguageStore } from '../../../lib/store';
 import api from '../../../lib/api';
 import { Message, SUBJECT_LABELS, SUBJECT_EMOJIS, SUBJECT_COLORS } from '../../../lib/types';
+import { getCourse, getSegment } from '../../../config/segments';
 import styles from './chat.module.css';
 import AppLayout from '../../../components/AppLayout';
 import { formatDistanceToNow } from 'date-fns';
@@ -68,9 +69,20 @@ export default function ChatPage() {
   };
 
   const subject = conversation?.subject;
-  const subjectColor = subject ? SUBJECT_COLORS[subject as keyof typeof SUBJECT_COLORS] : '#a5b4fc';
+  const isSegment = !!conversation?.segmentId;
+  const course = isSegment ? getCourse(conversation.segmentId, conversation.subjectId, conversation.courseId) : null;
+  const segmentTheme = isSegment ? getSegment(conversation.segmentId) : null;
+  
+  const uiThemeColor = isSegment ? segmentTheme?.accentColor || '#7F77DD' : (subject ? SUBJECT_COLORS[subject as keyof typeof SUBJECT_COLORS] : '#a5b4fc');
 
-  const SYSTEM_PROMPT = `
+  const SYSTEM_PROMPT = isSegment && course ? `
+${course.systemPrompt}
+
+[CRITICAL LANGUAGE INSTRUCTION]
+You MUST respond EXCLUSIVELY in ${LANGUAGES[lang]}. 
+Ignore any implied language from the prompt translation if it differs, and ONLY generate output in ${LANGUAGES[lang]}.
+Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken naturally in ${LANGUAGES[lang]}.
+` : `
 ${PROMPT_MAP[lang]}
 
 [CRITICAL LANGUAGE INSTRUCTION]
@@ -241,9 +253,15 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
             {t.back}
           </button>
           {subject && (
-            <div className={styles.subjectTag} style={{ color: subjectColor, borderColor: subjectColor + '40' }}>
-              <span>{SUBJECT_EMOJIS[subject as keyof typeof SUBJECT_EMOJIS]}</span>
-              <span>{SUBJECT_LABELS[subject as keyof typeof SUBJECT_LABELS]}</span>
+            <div className={styles.subjectTag} style={{ color: uiThemeColor, borderColor: uiThemeColor + '40' }}>
+              <div className={styles.headerDot} style={{ backgroundColor: uiThemeColor, boxShadow: `0 0 10px ${uiThemeColor}` }} />
+              <span>{SUBJECT_EMOJIS[subject as keyof typeof SUBJECT_EMOJIS] || '📝'}</span>
+              <span>{SUBJECT_LABELS[subject as keyof typeof SUBJECT_LABELS] || subject}</span>
+            </div>
+          )}
+          {conversation?.segmentId === 'cert' && (
+            <div className={styles.ddayTag} style={{ backgroundColor: uiThemeColor, color: 'white', padding: '4px 10px', borderRadius: '12px', fontSize: '13px', fontWeight: 'bold' }}>
+              D-30
             </div>
           )}
           <div className={styles.headerTitle}>{conversation?.title || t.ai_tutor}</div>
@@ -283,9 +301,43 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
               <div className={styles.welcomeAvatar}>🎓</div>
               <h3>{t.chat_welcome}</h3>
               <p>
-                {subject
-                  ? `${SUBJECT_LABELS[subject as keyof typeof SUBJECT_LABELS]}${t.chat_welcome_desc1}`
-                  : t.chat_welcome_desc2}
+                {course ? (
+                  <>
+                    <br/><br/>
+                    <strong style={{ color: uiThemeColor }}>추천 질문:</strong>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                      {course.starterQuestions.map((sq: string, i: number) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            setInput(sq);
+                            // Optional: auto-send
+                            // setTimeout(() => sendMessage(), 100);
+                          }}
+                          style={{
+                            textAlign: 'left',
+                            padding: '10px 16px',
+                            backgroundColor: '#f8fafc',
+                            border: `1px solid ${uiThemeColor}40`,
+                            borderRadius: '8px',
+                            fontSize: '14px',
+                            color: '#334155',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseOver={(e) => { e.currentTarget.style.backgroundColor = `${uiThemeColor}15`; }}
+                          onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                        >
+                          {sq}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  subject
+                    ? `${SUBJECT_LABELS[subject as keyof typeof SUBJECT_LABELS]}${t.chat_welcome_desc1}`
+                    : t.chat_welcome_desc2
+                )}
               </p>
             </div>
           )}
@@ -489,7 +541,7 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
                     }
                   }}
                   disabled={!input.trim() || sending}
-                  style={subject ? { background: `linear-gradient(135deg, ${subjectColor}88, ${subjectColor})` } : {}}
+                  style={subject ? { background: `linear-gradient(135deg, ${uiThemeColor}88, ${uiThemeColor})` } : {}}
                 >
                   {sending ? '⏳' : '→'}
                 </button>

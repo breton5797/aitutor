@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore } from '../../lib/store';
+import { useAuthStore, useLanguageStore } from '../../lib/store';
+import { TRANSLATIONS, LANGUAGES, SupportedLanguage } from '../../lib/i18n';
 import api from '../../lib/api';
 import {
   Subject, SUBJECT_LABELS, SUBJECT_EMOJIS, SUBJECT_COLORS, SUBJECT_BG,
@@ -21,8 +22,10 @@ export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const [records, setRecords] = useState<LearningRecord[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [recentConversations, setRecentConversations] = useState<Conversation[]>([]);
+  const [conversationList, setRecentConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const { lang, setLang } = useLanguageStore();
+  const t = TRANSLATIONS[lang];
 
   useEffect(() => {
     if (!user) { router.push('/auth/login'); return; }
@@ -53,10 +56,10 @@ export default function DashboardPage() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return '좋은 아침이야 ☀️';
-    if (hour < 17) return '안녕 😊';
-    if (hour < 21) return '잘 하고 있어 🌙';
-    return '늦게까지 공부하는구나 🌟';
+    if (hour < 12) return t.greeting_morning;
+    if (hour < 17) return t.greeting_afternoon;
+    if (hour < 21) return t.greeting_evening;
+    return t.greeting_night;
   };
 
   if (loading) {
@@ -64,7 +67,7 @@ export default function DashboardPage() {
       <AppLayout>
         <div className={styles.loading}>
           <div className={styles.loadingSpinner} />
-          <p>불러오는 중...</p>
+          <p>{t.loading_chat || '불러오는 중...'}</p>
         </div>
       </AppLayout>
     );
@@ -73,20 +76,33 @@ export default function DashboardPage() {
   return (
     <AppLayout>
       <div className={styles.container}>
+        {/* Top Controls */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+          <select
+            value={lang}
+            onChange={(e) => setLang(e.target.value as SupportedLanguage)}
+            style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '14px', background: 'white', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}
+          >
+            {(Object.keys(LANGUAGES) as SupportedLanguage[]).map((k) => (
+              <option key={k} value={k}>{LANGUAGES[k]}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Greeting */}
         <div className={styles.greeting}>
           <div>
             <h1 className={styles.greetingTitle}>
               {getGreeting()} {user?.name}!
             </h1>
-            <p className={styles.greetingDesc}>오늘도 같이 공부해보자! 뭐부터 시작할까? 📚</p>
+            <p className={styles.greetingDesc}>{t.greeting_desc}</p>
           </div>
         </div>
 
         {/* Recommendations */}
         {recommendations.length > 0 && (
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>✨ 오늘의 추천 학습</h2>
+            <h2 className={styles.sectionTitle}>{t.today_recommend}</h2>
             <div className={styles.recGrid}>
               {recommendations.map((rec, i) => (
                 <button
@@ -101,7 +117,7 @@ export default function DashboardPage() {
                   <div className={styles.recEmoji}>{SUBJECT_EMOJIS[rec.subject]}</div>
                   <div className={styles.recSubject}>{SUBJECT_LABELS[rec.subject]}</div>
                   <p className={styles.recMessage}>{rec.message}</p>
-                  <span className={styles.recAction}>시작하기 →</span>
+                  <span className={styles.recAction}>{t.start_btn}</span>
                 </button>
               ))}
             </div>
@@ -110,7 +126,7 @@ export default function DashboardPage() {
 
         {/* Subject Quick Start */}
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>⚡ 빠른 과목 선택</h2>
+          <h2 className={styles.sectionTitle}>{t.quick_subject}</h2>
           <div className={styles.subjectGrid}>
             {SUBJECTS.map((s) => {
               const record = records.find((r) => r.subject === s);
@@ -128,7 +144,7 @@ export default function DashboardPage() {
                   <div className={styles.subjectName}>{SUBJECT_LABELS[s]}</div>
                   {record && (
                     <div className={styles.subjectStats}>
-                      질문 {record.questionCount}회
+                      {(t.question_count || '').replace('{count}', String(record.questionCount))}
                     </div>
                   )}
                 </button>
@@ -138,14 +154,14 @@ export default function DashboardPage() {
         </section>
 
         {/* Recent Conversations */}
-        {recentConversations.length > 0 && (
+        {conversationList.length > 0 && (
           <section className={styles.section}>
             <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>📝 최근 대화</h2>
-              <Link href="/history" className="btn btn-ghost btn-sm">전체 보기</Link>
+              <h2 className={styles.sectionTitle}>📝 {t.recent_classes}</h2>
+              <Link href="/history" className="btn btn-ghost btn-sm">{t.all_classes}</Link>
             </div>
             <div className={styles.convList}>
-              {recentConversations.map((conv) => (
+              {conversationList.map((conv) => (
                 <Link key={conv.id} href={`/chat/${conv.id}`} className={styles.convItem}>
                   <div className={styles.convEmoji}>{SUBJECT_EMOJIS[conv.subject]}</div>
                   <div className={styles.convInfo}>
@@ -169,16 +185,16 @@ export default function DashboardPage() {
         {/* Learning Stats */}
         {records.length > 0 && (
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>📊 학습 현황</h2>
+            <h2 className={styles.sectionTitle}>{t.learning_stats}</h2>
             <div className={styles.statsGrid}>
               {records.map((r) => (
                 <div key={r.subject} className={styles.statCard} style={{ '--color': SUBJECT_COLORS[r.subject] } as React.CSSProperties}>
                   <div className={styles.statEmoji}>{SUBJECT_EMOJIS[r.subject]}</div>
                   <div className={styles.statInfo}>
                     <div className={styles.statSubject}>{SUBJECT_LABELS[r.subject]}</div>
-                    <div className={styles.statCount}>총 {r.questionCount}회 질문</div>
+                    <div className={styles.statCount}>{(t.question_count || '').replace('{count}', String(r.questionCount))}</div>
                     {r.wrongCount > 0 && (
-                      <div className={styles.statWrong}>오답 {r.wrongCount}회</div>
+                      <div className={styles.statWrong}>{(t.wrong_count || '').replace('{count}', String(r.wrongCount))}</div>
                     )}
                   </div>
                 </div>
@@ -187,11 +203,11 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {records.length === 0 && recentConversations.length === 0 && (
+        {records.length === 0 && conversationList.length === 0 && (
           <div className={styles.empty}>
             <div className={styles.emptyEmoji}>🌟</div>
-            <h3>첫 번째 질문을 해봐!</h3>
-            <p>위에서 과목을 선택하고 AI 튜터에게 궁금한 것을 물어봐</p>
+            <h3>{t.no_records_title}</h3>
+            <p>{t.no_records_desc}</p>
           </div>
         )}
       </div>

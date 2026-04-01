@@ -37,3 +37,23 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 );
+
+// Global Language Store
+import { SupportedLanguage } from './i18n';
+
+interface LanguageState {
+  lang: SupportedLanguage;
+  setLang: (lang: SupportedLanguage) => void;
+}
+
+export const useLanguageStore = create<LanguageState>()(
+  persist(
+    (set) => ({
+      lang: 'ko',
+      setLang: (lang) => set({ lang }),
+    }),
+    {
+      name: 'system-language',
+    }
+  )
+);

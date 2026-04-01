@@ -96,6 +96,7 @@ export class ConversationService {
         profile?.explainStyle,
         user?.name,
         dto.mode || 'TEXT',
+        dto.lang || 'ko',
       );
       aiContent = response.text;
       audioBase64 = response.audioBase64;

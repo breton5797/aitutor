@@ -88,7 +88,7 @@ model User {
   conversations   Conversation[]
   learningRecords LearningRecord[]
   recommendations Recommendation[]
-  
+
   // SaaS & Gamification Relations
   subscriptions Subscription[]
   reports       Report[]
@@ -97,15 +97,15 @@ model User {
 }
 
 model StudentProfile {
-  id            String       @id @default(cuid())
-  userId        String       @unique
-  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String       @id @default(cuid())
+  userId         String       @unique
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   preferSubjects Subject[]
   hardSubjects   Subject[]
-  explainStyle  ExplainStyle @default(DETAILED)
-  goal          StudyGoal    @default(DAILY)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  explainStyle   ExplainStyle @default(DETAILED)
+  goal           StudyGoal    @default(DAILY)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
 model Conversation {
@@ -177,7 +177,7 @@ model Report {
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   reportType ReportType
   summary    String
-  dataJson   Json       // Stores flexible structured data
+  dataJson   Json // Stores flexible structured data
   createdAt  DateTime   @default(now())
 }
 
@@ -200,4 +200,52 @@ model Achievement {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   badgeType String
   earnedAt  DateTime @default(now())
+}
+
+// ==========================================
+// Global SaaS & i18n Mappings
+// ==========================================
+model Language {
+  code String @id // e.g., 'ko', 'en', 'ja', 'es', 'vi'
+  name String
+
+  translations      Translation[]
+  characterProfiles CharacterProfile[]
+  countrySettings   CountrySetting[]
+}
+
+model Translation {
+  id           String @id @default(cuid())
+  key          String // e.g., 'start_learning'
+  languageCode String
+  value        String @db.Text
+
+  language Language @relation(fields: [languageCode], references: [code], onDelete: Cascade)
+
+  @@unique([key, languageCode])
+}
+
+model CharacterProfile {
+  id           String @id @default(cuid())
+  characterId  String // e.g., 'math_lina'
+  languageCode String
+  prompt       String @db.Text
+  voiceId      String
+  ttsConfig    Json // e.g., { pitch: 1.0, speed: 1.0 }
+
+  language Language @relation(fields: [languageCode], references: [code], onDelete: Cascade)
+
+  @@unique([characterId, languageCode])
+}
+
+model CountrySetting {
+  id            String @id @default(cuid())
+  country       String // e.g., 'KR', 'US', 'JP'
+  languageCode  String
+  tone          String // e.g., 'polite', 'energetic'
+  learningStyle String // e.g., 'step_by_step', 'quick_review'
+
+  language Language @relation(fields: [languageCode], references: [code], onDelete: Cascade)
+
+  @@unique([country, languageCode])
 }

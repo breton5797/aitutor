@@ -41,6 +41,7 @@ export class AiService {
     subject: Subject,
     explainStyle?: ExplainStyle,
     studentName?: string,
+    langCode: string = 'ko',
   ): string {
     const subjectName = this.getSubjectName(subject);
     const subjectInstruction = this.getSubjectInstruction(subject);
@@ -70,7 +71,10 @@ ${styleGuide}
 
 ${studentName ? `학생 이름은 ${studentName}야. 가끔 이름을 불러줘도 좋아.` : ''}
 
-항상 한국어로 답해줘.`;
+[CRITICAL LANGUAGE REQUIREMENT]
+You MUST process the input and generate your response EXCLUSIVELY in the target language corresponding to the language code: "${langCode}".
+If the instructions above are in Korean, you must still output your final response purely in the language of "${langCode}".
+All formatting should be natural for Text-To-Speech audio output targeting the language "${langCode}".`;
   }
 
   detectQuestionType(content: string): QuestionType {
@@ -99,30 +103,37 @@ ${studentName ? `학생 이름은 ${studentName}야. 가끔 이름을 불러줘�
     explainStyle?: ExplainStyle,
     studentName?: string,
     mode: 'TEXT' | 'VOICE' = 'TEXT',
+    lang: string = 'ko',
   ): Promise<{ text: string; audioBase64?: string }> {
-    const systemPrompt = this.buildSystemPrompt(subject, explainStyle, studentName);
+    const systemPrompt = this.buildSystemPrompt(subject, explainStyle, studentName, lang);
 
     if (mode === 'VOICE') {
-      const history = messages.slice(0, -1).map((m) => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }],
-      }));
+      // Build proper alternating history (user/model pairs only)
+      const cleanHistory: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+      let lastRole = '';
+      for (const m of messages.slice(0, -1)) {
+        const role = m.role === 'assistant' ? 'model' : 'user';
+        if (role === lastRole) continue; // Skip consecutive same-role messages
+        cleanHistory.push({ role, parts: [{ text: m.content }] });
+        lastRole = role;
+      }
       const lastMessage = messages[messages.length - 1];
 
+      // Attempt 1: Audio response
       try {
         const response = await this.gemini.models.generateContent({
-          model: 'gemini-2.0-flash',
+          model: 'gemini-2.5-flash',
           contents: [
-            { role: 'user', parts: [{ text: `[System Instructions]\n${systemPrompt}` }] },
-            ...history,
+            ...cleanHistory,
             { role: 'user', parts: [{ text: lastMessage.content }] },
           ],
           config: {
+            systemInstruction: systemPrompt,
             responseModalities: ['AUDIO'],
             speechConfig: {
               voiceConfig: {
                 prebuiltVoiceConfig: {
-                  voiceName: 'Aoede', // Friendly voice
+                  voiceName: 'Aoede',
                 },
               },
             },
@@ -135,17 +146,48 @@ ${studentName ? `학생 이름은 ${studentName}야. 가끔 이름을 불러줘�
         if (response.candidates?.[0]?.content?.parts) {
           for (const part of response.candidates[0].content.parts) {
             if (part.text) text += part.text;
-            if (part.inlineData?.data) {
-              audioBase64 = part.inlineData.data;
+            if ((part as any).inlineData?.data) {
+              audioBase64 = (part as any).inlineData.data;
             }
           }
         }
 
-        return { text: text || '음성 설명이 준비되었습니다.', audioBase64 };
-      } catch (err) {
-        console.error('Gemini API Error:', err);
-        return { text: 'Gemini 연결 중 문제가 발생했어. 문자로 먼저 알려줄게!' };
+        if (audioBase64) {
+          return { text: text || '음성 설명이 준비되었습니다.', audioBase64 };
+        }
+
+        // If audio was empty, fall through to text fallback
+        console.warn('Gemini returned no audio data, falling back to text.');
+      } catch (err: any) {
+        console.error('Gemini Audio API Error:', err?.message || err);
       }
+
+      // Attempt 2: Text-only fallback via Gemini
+      try {
+        const textResponse = await this.gemini.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [
+            ...cleanHistory,
+            { role: 'user', parts: [{ text: lastMessage.content }] },
+          ],
+          config: {
+            systemInstruction: systemPrompt,
+          },
+        });
+
+        const fallbackText = textResponse.candidates?.[0]?.content?.parts
+          ?.map((p: any) => p.text)
+          .filter(Boolean)
+          .join('') || '';
+
+        if (fallbackText) {
+          return { text: fallbackText };
+        }
+      } catch (err2: any) {
+        console.error('Gemini Text Fallback Error:', err2?.message || err2);
+      }
+
+      return { text: '현재 AI 음성 서비스에 일시적인 문제가 있어요. 잠시 후 다시 시도해 주세요!' };
     } else {
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',

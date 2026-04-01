@@ -2,19 +2,20 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuthStore } from '../../../lib/store';
+import { useAuthStore, useLanguageStore } from '../../../lib/store';
 import api from '../../../lib/api';
 import { Message, SUBJECT_LABELS, SUBJECT_EMOJIS, SUBJECT_COLORS } from '../../../lib/types';
 import styles from './chat.module.css';
 import AppLayout from '../../../components/AppLayout';
 import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { useGeminiLive } from '../../../lib/useGeminiLive';
+import { SupportedLanguage, LANGUAGES, TRANSLATIONS, PROMPT_MAP, VOICE_MAP } from '../../../lib/i18n';
 
-const QUICK_ACTIONS = [
-  { label: '더 쉽게 설명해줘', emoji: '🔍' },
-  { label: '예시 들어줘', emoji: '💡' },
-  { label: '문제처럼 내줘', emoji: '📝' },
-  { label: '요약해줘', emoji: '📌' },
+const QUICK_ACTIONS = (t: Record<string, string>) => [
+  { label: t.concept_mode, emoji: '📘', prompt: '개념 설명을 요청합니다. 쉬운 말로, 비유를 사용해서, 한 번에 하나씩 설명해줘.' },
+  { label: t.step_mode, emoji: '📐', prompt: '문제 풀이를 요청합니다. 정답을 바로 주지 말고 단계별로, 내가 따라올 수 있게 천천히 진행하며, 중간중간 확인 질문을 던져줘.' },
+  { label: t.summary_mode, emoji: '📌', prompt: '지금까지 배운 내용을 간단하게 요약해줘.' },
 ];
 
 export default function ChatPage() {
@@ -33,6 +34,13 @@ export default function ChatPage() {
   const [recNotice, setRecNotice] = useState<any>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [showText, setShowText] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
+  const { lang, setLang } = useLanguageStore();
+
+  const t = TRANSLATIONS[lang];
 
   useEffect(() => {
     if (!user) { router.push('/auth/login'); return; }
@@ -59,6 +67,95 @@ export default function ChatPage() {
     }
   };
 
+  const subject = conversation?.subject;
+  const subjectColor = subject ? SUBJECT_COLORS[subject as keyof typeof SUBJECT_COLORS] : '#a5b4fc';
+
+  const SYSTEM_PROMPT = `
+${PROMPT_MAP[lang]}
+
+[CRITICAL LANGUAGE INSTRUCTION]
+You MUST respond EXCLUSIVELY in ${LANGUAGES[lang]}. 
+Ignore any implied language from the prompt translation if it differs, and ONLY generate output in ${LANGUAGES[lang]}.
+Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken naturally in ${LANGUAGES[lang]}.
+
+[Core Role]
+- Act as a friendly AI tutor for students.
+- Always explain concepts to help students understand easily.
+- Maintain a warm tone so students feel comfortable asking questions.
+
+[Input/Output]
+- Base input is text but may originate from voice.
+- All basic responses must be generated for "Voice Output".
+- Write sentences as if speaking naturally, not like a textbook.
+
+[Tone Rules]
+- No stiff sentences. Focus on natural spoken conversational language.
+- Always start softly and encouragingly.
+
+[Response Structure]
+1. Short empathy/encouragement
+2. Core explanation
+3. Easy example or step-by-step
+4. Quick summary
+5. Prompt next action
+
+[Additional Rules]
+- Keep sentences short (under 25 words).
+- Explain math/formulas in words.
+- Never use cold feedback like "You're wrong".
+`;
+
+  const { isConnected, isSpeaking, error, toggleConnect, connect, disconnect, sendText, pauseAudio, resumeAudio } = useGeminiLive({
+    systemInstruction: SYSTEM_PROMPT,
+    audioEnabled,
+    voiceName: VOICE_MAP[lang].voiceName,
+    onMessage: (text) => {
+      setMessages((prev) => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg && lastMsg.role === 'ASSISTANT' && lastMsg.id.startsWith('voice-')) {
+          const updated = [...prev];
+          updated[updated.length - 1] = { ...lastMsg, content: lastMsg.content + text };
+          return updated;
+        } else {
+          return [...prev, {
+            id: 'voice-' + Date.now().toString() + Math.random().toString(),
+            conversationId: id,
+            role: 'ASSISTANT',
+            content: text,
+            questionType: 'casual',
+            createdAt: new Date().toISOString(),
+          }];
+        }
+      });
+    },
+    onUserSpeak: (text) => {
+      setMessages((prev) => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg && lastMsg.role === 'USER' && lastMsg.id.startsWith('voice-')) {
+          const updated = [...prev];
+          updated[updated.length - 1] = { ...lastMsg, content: lastMsg.content + text };
+          return updated;
+        } else {
+          return [...prev, {
+            id: 'voice-req-' + Date.now().toString() + Math.random().toString(),
+            conversationId: id,
+            role: 'USER',
+            content: text,
+            questionType: 'casual',
+            createdAt: new Date().toISOString(),
+          }];
+        }
+      });
+    }
+  });
+
+  // Automatically disconnect when switching back to text mode
+  useEffect(() => {
+    if (replyMode === 'TEXT') {
+      disconnect();
+    }
+  }, [replyMode, disconnect]);
+
   const sendMessage = async (content?: string) => {
     const text = content || input.trim();
     if (!text || sending) return;
@@ -67,7 +164,7 @@ export default function ChatPage() {
 
     // Optimistic update
     const tempMsg: Message = {
-      id: 'temp-' + Date.now(),
+      id: 'temp-' + Date.now() + Math.random().toString(),
       conversationId: id,
       role: 'USER',
       content: text,
@@ -77,7 +174,7 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, tempMsg]);
 
     try {
-      const res = await api.post(`/conversations/${id}/messages`, { content: text, mode: replyMode });
+      const res = await api.post(`/conversations/${id}/messages`, { content: text, mode: replyMode, lang: lang });
       
       const newAiMessage = res.data.aiMessage;
       if (res.data.audioBase64) {
@@ -129,14 +226,11 @@ export default function ChatPage() {
       <AppLayout>
         <div className={styles.loading}>
           <div className={styles.loadingSpinner} />
-          <p>대화를 불러오는 중...</p>
+          <p>{t.loading_chat || '대화를 불러오는 중...'}</p>
         </div>
       </AppLayout>
     );
   }
-
-  const subject = conversation?.subject;
-  const subjectColor = subject ? SUBJECT_COLORS[subject as keyof typeof SUBJECT_COLORS] : '#a5b4fc';
 
   return (
     <AppLayout>
@@ -144,7 +238,7 @@ export default function ChatPage() {
         {/* Header */}
         <div className={styles.header}>
           <button className={styles.backBtn} onClick={() => router.push('/dashboard')}>
-            ← 뒤로
+            {t.back}
           </button>
           {subject && (
             <div className={styles.subjectTag} style={{ color: subjectColor, borderColor: subjectColor + '40' }}>
@@ -152,7 +246,16 @@ export default function ChatPage() {
               <span>{SUBJECT_LABELS[subject as keyof typeof SUBJECT_LABELS]}</span>
             </div>
           )}
-          <div className={styles.headerTitle}>{conversation?.title || 'AI 튜터'}</div>
+          <div className={styles.headerTitle}>{conversation?.title || t.ai_tutor}</div>
+          <select
+            value={lang}
+            onChange={(e) => setLang(e.target.value as SupportedLanguage)}
+            style={{ padding: '4px 8px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '13px', background: 'white', flexShrink: 0 }}
+          >
+            {(Object.keys(LANGUAGES) as SupportedLanguage[]).map((k) => (
+              <option key={k} value={k}>{LANGUAGES[k]}</option>
+            ))}
+          </select>
         </div>
 
         {/* Messages */}
@@ -162,10 +265,10 @@ export default function ChatPage() {
             <div className={styles.recBanner}>
               <div className={styles.recIcon}>💡</div>
               <div className={styles.recText}>
-                <strong>AI 튜터 분석</strong>
+                <strong>{t.ai_analysis}</strong>
                 <p>{recNotice.message}</p>
               </div>
-              <button className={styles.recActionBtn}>개념 복습하기</button>
+              <button className={styles.recActionBtn}>{t.review_concept}</button>
             </div>
           )}
 
@@ -178,11 +281,11 @@ export default function ChatPage() {
           {messages.length === 0 && (
             <div className={styles.welcome}>
               <div className={styles.welcomeAvatar}>🎓</div>
-              <h3>안녕! AI 튜터야 😊</h3>
+              <h3>{t.chat_welcome}</h3>
               <p>
                 {subject
-                  ? `${SUBJECT_LABELS[subject as keyof typeof SUBJECT_LABELS]} 공부 도와줄게! 궁금한 거 뭐든 물어봐`
-                  : '무엇이든 질문해봐! 친절하게 설명해줄게'}
+                  ? `${SUBJECT_LABELS[subject as keyof typeof SUBJECT_LABELS]}${t.chat_welcome_desc1}`
+                  : t.chat_welcome_desc2}
               </p>
             </div>
           )}
@@ -197,13 +300,8 @@ export default function ChatPage() {
                 <div className={styles.aiAvatar}>🎓</div>
               )}
               <div className={styles.bubble}>
-                <div className={styles.bubbleContent}>
-                  {msg.content.split('\n').map((line, i) => (
-                    <span key={i}>
-                      {line}
-                      {i < msg.content.split('\n').length - 1 && <br />}
-                    </span>
-                  ))}
+                <div className={styles.bubbleContent} style={{ filter: showText ? 'none' : 'blur(6px)', opacity: showText ? 1 : 0.6, transition: 'all 0.3s ease', whiteSpace: 'pre-wrap' }}>
+                  {msg.content}
                 </div>
                 <div className={styles.bubbleTime}>
                   {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true, locale: ko })}
@@ -239,11 +337,17 @@ export default function ChatPage() {
 
         {/* Quick Actions */}
         <div className={styles.quickActions}>
-          {QUICK_ACTIONS.map((action) => (
+          {QUICK_ACTIONS(t).map((action, i) => (
             <button
-              key={action.label}
+              key={i}
               className={styles.quickBtn}
-              onClick={() => sendMessage(action.label)}
+              onClick={() => {
+                if (replyMode === 'VOICE' && isConnected) {
+                  sendText(action.prompt);
+                } else {
+                  sendMessage(action.prompt);
+                }
+              }}
               disabled={sending}
             >
               <span>{action.emoji}</span>
@@ -254,42 +358,148 @@ export default function ChatPage() {
 
         {/* Input */}
         <div className={styles.inputArea}>
-          <div className={styles.inputHeader}>
+          <div className={styles.inputHeader} style={{ justifyContent: 'space-between', alignItems: 'center' }}>
             <div className={styles.modeToggle}>
               <button 
                 className={`${styles.modeBtn} ${replyMode === 'TEXT' ? styles.activeMode : ''}`}
                 onClick={() => setReplyMode('TEXT')}
               >
-                📝 문자
+                {t.text_mode}
               </button>
               <button 
                 className={`${styles.modeBtn} ${replyMode === 'VOICE' ? styles.activeMode : ''}`}
                 onClick={() => setReplyMode('VOICE')}
               >
-                🎙️ 음성 (Live)
+                {t.voice_mode}
               </button>
             </div>
+            {replyMode === 'VOICE' && (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  onClick={() => setAudioEnabled(!audioEnabled)}
+                  style={{ background: 'none', border: '1px solid #ccc', borderRadius: '8px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  {audioEnabled ? t.sound_on : t.sound_off}
+                </button>
+                <button 
+                  onClick={() => {
+                    if (isPaused) resumeAudio();
+                    else pauseAudio();
+                    setIsPaused(!isPaused);
+                  }}
+                  style={{ background: 'none', border: '1px solid #ccc', borderRadius: '8px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  {isPaused ? t.play : t.stop}
+                </button>
+                <button 
+                  onClick={() => setShowText(!showText)}
+                  style={{ background: 'none', border: '1px solid #ccc', borderRadius: '8px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  {showText ? t.hide_text : t.show_text}
+                </button>
+              </div>
+            )}
           </div>
           <div className={styles.inputControls}>
-            <textarea
-              ref={inputRef}
-              className={styles.input}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="궁금한 거 뭐든 물어봐! (Enter로 전송)"
-              rows={1}
-              style={{ resize: 'none' }}
-              disabled={sending}
-            />
-            <button
-              className={styles.sendBtn}
-              onClick={() => sendMessage()}
-              disabled={!input.trim() || sending}
-              style={subject ? { background: `linear-gradient(135deg, ${subjectColor}88, ${subjectColor})` } : {}}
-            >
-              {sending ? '⏳' : '→'}
-            </button>
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {replyMode === 'VOICE' && (
+                <button
+                  className={`${styles.input} ${isConnected ? styles.voiceActive : ''}`}
+                  onClick={toggleConnect}
+                  style={{
+                    background: isConnected ? '#fee2e2' : '#f3f4f6',
+                    color: isConnected ? '#ef4444' : '#374151',
+                    textAlign: 'center',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    border: isConnected ? '2px solid #ef4444' : '2px solid transparent',
+                    transition: 'all 0.3s ease',
+                    padding: '8px 16px',
+                    borderRadius: '12px'
+                  }}
+                >
+                  {isConnected ? (
+                    <>
+                      <span className={styles.pulseDot} style={{ background: '#ef4444' }}></span>
+                      {isSpeaking ? 'AI Tutor Speaking...' : t.mic_on}
+                    </>
+                  ) : (
+                    <>{t.mic_connect}</>
+                  )}
+                </button>
+              )}
+              
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', width: '100%' }}>
+                <textarea
+                  ref={inputRef}
+                  className={styles.input}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (isConnected && input.trim()) {
+                        // Optimistic UI for WebSocket
+                        setMessages((prev) => [
+                          ...prev,
+                          {
+                            id: 'voice-req-' + Date.now() + Math.random(),
+                            conversationId: id,
+                            role: 'USER',
+                            content: input.trim(),
+                            questionType: 'casual',
+                            createdAt: new Date().toISOString(),
+                          } as any
+                        ]);
+                        sendText(input.trim()); // Send to websocket
+                        setInput('');
+                      } else {
+                        sendMessage(); // Send to backend REST API
+                      }
+                    }
+                  }}
+                  placeholder={t.placeholder}
+                  rows={1}
+                  style={{ resize: 'none' }}
+                  disabled={sending}
+                />
+                <button
+                  className={styles.sendBtn}
+                  onClick={() => {
+                    if (isConnected && input.trim()) {
+                       setMessages((prev) => [
+                          ...prev,
+                           {
+                             id: 'voice-req-' + Date.now() + Math.random(),
+                             conversationId: id,
+                             role: 'USER',
+                             content: input.trim(),
+                             questionType: 'casual',
+                             createdAt: new Date().toISOString(),
+                           } as any
+                       ]);
+                       sendText(input.trim());
+                       setInput('');
+                    } else {
+                       sendMessage();
+                    }
+                  }}
+                  disabled={!input.trim() || sending}
+                  style={subject ? { background: `linear-gradient(135deg, ${subjectColor}88, ${subjectColor})` } : {}}
+                >
+                  {sending ? '⏳' : '→'}
+                </button>
+              </div>
+            </div>
+            {error && (
+              <div style={{ position: 'absolute', top: -30, color: 'red', fontSize: '12px' }}>
+                오류: {error}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -17,4 +17,8 @@ export class SendMessageDto {
   @IsString()
   @IsOptional()
   mode?: 'TEXT' | 'VOICE';
+
+  @IsString()
+  @IsOptional()
+  lang?: string;
 }

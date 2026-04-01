@@ -1,0 +1,203 @@
+// AI Tutor MVP — Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum Subject {
+  ENGLISH
+  MATH
+  SCIENCE
+  HISTORY
+}
+
+enum QuestionType {
+  concept
+  solve
+  wrong_answer
+  summary
+  recommend
+  casual
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+enum Grade {
+  MIDDLE_1
+  MIDDLE_2
+  MIDDLE_3
+  HIGH_1
+  HIGH_2
+  HIGH_3
+}
+
+enum ExplainStyle {
+  SHORT
+  DETAILED
+}
+
+enum StudyGoal {
+  EXAM
+  DAILY
+  ASSIGNMENT
+  CONCEPT
+}
+
+enum PlanType {
+  FREE
+  BASIC
+  PREMIUM
+  PARENT
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  EXPIRED
+}
+
+enum ReportType {
+  STUDENT
+  PARENT
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  grade     Grade
+  role      Role     @default(STUDENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile         StudentProfile?
+  conversations   Conversation[]
+  learningRecords LearningRecord[]
+  recommendations Recommendation[]
+  
+  // SaaS & Gamification Relations
+  subscriptions Subscription[]
+  reports       Report[]
+  userStats     UserStats?
+  achievements  Achievement[]
+}
+
+model StudentProfile {
+  id            String       @id @default(cuid())
+  userId        String       @unique
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preferSubjects Subject[]
+  hardSubjects   Subject[]
+  explainStyle  ExplainStyle @default(DETAILED)
+  goal          StudyGoal    @default(DAILY)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   Subject
+  title     String   @default("새 대화")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages Message[]
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           MessageRole
+  content        String       @db.Text
+  questionType   QuestionType @default(casual)
+  createdAt      DateTime     @default(now())
+}
+
+model LearningRecord {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject       Subject
+  questionCount Int      @default(0)
+  wrongCount    Int      @default(0)
+  lastStudiedAt DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, subject])
+}
+
+model Recommendation {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   Subject
+  message   String
+  type      String   @default("general")
+  createdAt DateTime @default(now())
+}
+
+// ==========================================
+// SaaS Billing & Subscriptions
+// ==========================================
+model Subscription {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planType  PlanType           @default(FREE)
+  status    SubscriptionStatus @default(ACTIVE)
+  startDate DateTime           @default(now())
+  endDate   DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+// ==========================================
+// Analytics & Reports
+// ==========================================
+model Report {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reportType ReportType
+  summary    String
+  dataJson   Json       // Stores flexible structured data
+  createdAt  DateTime   @default(now())
+}
+
+// ==========================================
+// Gamification (XP, Levels, Badges)
+// ==========================================
+model UserStats {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  xp            Int      @default(0)
+  level         Int      @default(1)
+  streakDays    Int      @default(0)
+  lastStudyDate DateTime @default(now())
+}
+
+model Achievement {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeType String
+  earnedAt  DateTime @default(now())
+}

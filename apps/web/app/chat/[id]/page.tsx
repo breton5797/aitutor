@@ -32,6 +32,8 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [replyMode, setReplyMode] = useState<'TEXT' | 'VOICE'>('TEXT');
   const [xpNotice, setXpNotice] = useState<string | null>(null);
+  const [attachment, setAttachment] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [recNotice, setRecNotice] = useState<any>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -180,13 +182,18 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
       conversationId: id,
       role: 'USER',
       content: text,
+      attachmentUrl: attachment || undefined,
       questionType: 'casual',
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempMsg]);
 
+    const sentAttachment = attachment;
+    setAttachment(null);
+    if(fileInputRef.current) fileInputRef.current.value = '';
+
     try {
-      const res = await api.post(`/conversations/${id}/messages`, { content: text, mode: replyMode, lang: lang });
+      const res = await api.post(`/conversations/${id}/messages`, { content: text, mode: replyMode, lang: lang, attachmentUrl: sentAttachment });
       
       const newAiMessage = res.data.aiMessage;
       if (res.data.audioBase64) {
@@ -354,7 +361,12 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
               )}
               <div className={styles.bubble}>
                 <div className={styles.bubbleContent} style={{ filter: showText ? 'none' : 'blur(6px)', opacity: showText ? 1 : 0.6, transition: 'all 0.3s ease', whiteSpace: 'pre-wrap' }}>
-                  {msg.content}
+                  {msg.role === 'USER' && msg.attachmentUrl && (
+                  <div style={{ marginBottom: '8px' }}>
+                    <img src={msg.attachmentUrl} alt="attachment" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }} />
+                  </div>
+                )}
+                {msg.content}
                 </div>
                 <div className={styles.bubbleTime}>
                   {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true, locale: ko })}
@@ -486,7 +498,44 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
                 </button>
               )}
               
+              {attachment && (
+                <div style={{ position: 'relative', display: 'inline-block', marginBottom: '8px', alignSelf: 'flex-start' }}>
+                  <img src={attachment} alt="Upload Preview" style={{ height: '60px', borderRadius: '8px', border: '1px solid #ccc' }} />
+                  <button
+                    onClick={() => { setAttachment(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
+                    style={{ position: 'absolute', top: -8, right: -8, background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', width: '100%' }}>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  accept="image/*" 
+                  style={{ display: 'none' }} 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => setAttachment(reader.result as string);
+                      reader.readAsDataURL(file);
+                    }
+                  }} 
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{ 
+                    background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', 
+                    padding: '8px', opacity: 0.6, transition: '0.2s' 
+                  }}
+                  onMouseOver={e => e.currentTarget.style.opacity = '1'}
+                  onMouseOut={e => e.currentTarget.style.opacity = '0.6'}
+                >
+                  📎
+                </button>
                 <textarea
                   ref={inputRef}
                   className={styles.input}

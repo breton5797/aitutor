@@ -68,6 +68,7 @@ export class ConversationService {
         role: 'USER',
         content: dto.content,
         questionType,
+        attachmentUrl: dto.attachmentUrl,
       },
     });
 
@@ -88,6 +89,7 @@ export class ConversationService {
     const aiMessages = history.map((m) => ({
       role: m.role === 'USER' ? ('user' as const) : ('assistant' as const),
       content: m.content,
+      attachmentUrl: m.attachmentUrl || undefined,
     }));
 
     let aiContent: string;

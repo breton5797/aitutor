@@ -34,4 +34,8 @@ export class SendMessageDto {
   @IsString()
   @IsOptional()
   lang?: string;
+
+  @IsString()
+  @IsOptional()
+  attachmentUrl?: string;
 }

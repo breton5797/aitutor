@@ -113,7 +113,7 @@ All formatting should be natural for Text-To-Speech audio output targeting the l
   }
 
   async generateResponse(
-    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+    messages: Array<{ role: 'user' | 'assistant'; content: string; attachmentUrl?: string }>,
     subject: Subject,
     explainStyle?: ExplainStyle,
     studentName?: string,
@@ -126,16 +126,29 @@ All formatting should be natural for Text-To-Speech audio output targeting the l
     const systemPrompt = this.buildSystemPrompt(subject, explainStyle, studentName, lang, segmentId, subjectIdStr, courseId);
 
     if (mode === 'VOICE') {
-      // Build proper alternating history (user/model pairs only)
-      const cleanHistory: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+      const cleanHistory: Array<{ role: string; parts: Array<any> }> = [];
       let lastRole = '';
       for (const m of messages.slice(0, -1)) {
         const role = m.role === 'assistant' ? 'model' : 'user';
         if (role === lastRole) continue; // Skip consecutive same-role messages
-        cleanHistory.push({ role, parts: [{ text: m.content }] });
+        const parts: any[] = [];
+        if (m.content) parts.push({ text: m.content });
+        if (m.attachmentUrl?.startsWith('data:')) {
+          const [header, base64] = m.attachmentUrl.split(',');
+          const mimeType = header.replace('data:', '').replace(';base64', '');
+          parts.push({ inlineData: { mimeType, data: base64 } });
+        }
+        cleanHistory.push({ role, parts });
         lastRole = role;
       }
       const lastMessage = messages[messages.length - 1];
+      const lastParts: any[] = [];
+      if (lastMessage.content) lastParts.push({ text: lastMessage.content });
+      if (lastMessage.attachmentUrl?.startsWith('data:')) {
+        const [header, base64] = lastMessage.attachmentUrl.split(',');
+        const mimeType = header.replace('data:', '').replace(';base64', '');
+        lastParts.push({ inlineData: { mimeType, data: base64 } });
+      }
 
       // Attempt 1: Audio response
       try {
@@ -143,7 +156,7 @@ All formatting should be natural for Text-To-Speech audio output targeting the l
           model: 'gemini-2.5-flash',
           contents: [
             ...cleanHistory,
-            { role: 'user', parts: [{ text: lastMessage.content }] },
+            { role: 'user', parts: lastParts },
           ],
           config: {
             systemInstruction: systemPrompt,
@@ -186,7 +199,7 @@ All formatting should be natural for Text-To-Speech audio output targeting the l
           model: 'gemini-2.5-flash',
           contents: [
             ...cleanHistory,
-            { role: 'user', parts: [{ text: lastMessage.content }] },
+            { role: 'user', parts: lastParts },
           ],
           config: {
             systemInstruction: systemPrompt,
@@ -207,12 +220,22 @@ All formatting should be natural for Text-To-Speech audio output targeting the l
 
       return { text: '현재 AI 음성 서비스에 일시적인 문제가 있어요. 잠시 후 다시 시도해 주세요!' };
     } else {
+      const openaiMessages: any[] = [
+        { role: 'system', content: systemPrompt },
+        ...messages.map(m => {
+          if (m.attachmentUrl?.startsWith('data:image')) {
+            const content: any[] = [];
+            if (m.content) content.push({ type: 'text', text: m.content });
+            content.push({ type: 'image_url', image_url: { url: m.attachmentUrl } });
+            return { role: m.role, content };
+          }
+          return { role: m.role, content: m.content || ' ' }; // default strings
+        })
+      ];
+
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...messages,
-        ],
+        messages: openaiMessages,
         max_tokens: 1500,
         temperature: 0.7,
       });

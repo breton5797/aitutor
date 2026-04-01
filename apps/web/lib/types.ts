@@ -46,6 +46,7 @@ export interface Message {
   questionType: QuestionType;
   createdAt: string;
   audioBase64?: string;
+  attachmentUrl?: string;
 }
 
 export interface LearningRecord {

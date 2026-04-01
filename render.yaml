@@ -2,6 +2,7 @@ services:
   - type: web
     name: aitutor-api
     env: node
+    plan: free
     region: singapore # 가장 한국과 가까운 리전
     buildCommand: npm install && npx turbo run build --filter=api && cd apps/api && npx prisma generate && npx prisma db push
     startCommand: cd apps/api && npm run start:prod
@@ -23,6 +24,7 @@ services:
 
 databases:
   - name: aitutor-db
+    plan: free
     region: singapore
     databaseName: aitutor
     user: aitutor_user

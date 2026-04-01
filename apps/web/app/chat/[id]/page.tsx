@@ -300,9 +300,10 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
             <div className={styles.welcome}>
               <div className={styles.welcomeAvatar}>🎓</div>
               <h3>{t.chat_welcome}</h3>
-              <p>
+              <div style={{ color: '#555', marginTop: '8px' }}>
                 {course ? (
                   <>
+                    <span>선생님 <b>{segmentTheme?.teacherPersona.tone}</b> 말투로 꼼꼼하게 알려드릴게요.</span>
                     <br/><br/>
                     <strong style={{ color: uiThemeColor }}>추천 질문:</strong>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
@@ -338,7 +339,7 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
                     ? `${SUBJECT_LABELS[subject as keyof typeof SUBJECT_LABELS]}${t.chat_welcome_desc1}`
                     : t.chat_welcome_desc2
                 )}
-              </p>
+              </div>
             </div>
           )}
 

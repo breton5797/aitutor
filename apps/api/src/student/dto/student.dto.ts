@@ -3,12 +3,10 @@ import { Subject, ExplainStyle, StudyGoal } from '@prisma/client';
 
 export class CreateProfileDto {
   @IsArray()
-  @IsEnum(Subject, { each: true })
-  preferSubjects: Subject[];
+  preferSubjects: string[];
 
   @IsArray()
-  @IsEnum(Subject, { each: true })
-  hardSubjects: Subject[];
+  hardSubjects: string[];
 
   @IsEnum(ExplainStyle)
   explainStyle: ExplainStyle;

@@ -115,8 +115,8 @@ model StudentProfile {
   id             String       @id @default(cuid())
   userId         String       @unique
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  preferSubjects Subject[]
-  hardSubjects   Subject[]
+  preferSubjects String[]
+  hardSubjects   String[]
   explainStyle   ExplainStyle @default(DETAILED)
   goal           StudyGoal    @default(DAILY)
   createdAt      DateTime     @default(now())

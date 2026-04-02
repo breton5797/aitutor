@@ -6,7 +6,9 @@ import { useAuthStore } from '../../../lib/store';
 import toast from 'react-hot-toast';
 import styles from '../auth.module.css';
 
-export default function OAuthCallbackPage() {
+import { Suspense } from 'react';
+
+function OAuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -42,5 +44,13 @@ export default function OAuthCallbackPage() {
         <p>잠시만 기다려주세요!</p>
       </div>
     </div>
+  );
+}
+
+export default function OAuthCallbackPage() {
+  return (
+    <Suspense fallback={<div className={styles.container}><div className={styles.card} style={{ textAlign: 'center' }}><h2>로딩 중... ⏳</h2></div></div>}>
+      <OAuthCallbackContent />
+    </Suspense>
   );
 }

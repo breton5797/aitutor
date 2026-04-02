@@ -38,7 +38,7 @@ export class AuthService {
     });
     if (!user) throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
 
-    const match = await bcrypt.compare(dto.password, user.password);
+    const match = user.password && await bcrypt.compare(dto.password, user.password);
     if (!match) throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
 
     const token = this.generateToken(user.id, user.email, user.role);
@@ -52,6 +52,45 @@ export class AuthService {
     });
     if (!user) throw new UnauthorizedException();
     return this.sanitizeUser(user);
+  }
+
+  async validateOAuthLogin(socialUser: any) {
+    const { email, name, provider, socialId } = socialUser;
+    
+    // 이메일이나 소셜ID로 기존 유저 확인
+    let user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { socialId },
+          { email },
+        ],
+      },
+    });
+
+    if (!user) {
+      // 새 유저 가입 (소셜 유저는 비밀번호 없이 가입)
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          name,
+          provider: provider as any,
+          socialId,
+          grade: 'GENERAL', // 기본값으로 일반 세그먼트 부여
+        },
+      });
+    } else if (!user.socialId) {
+      // 기존 로컬가입 유저가 소셜 로그인 시도 시 연동 연동
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          provider: provider as any,
+          socialId,
+        },
+      });
+    }
+
+    const token = this.generateToken(user.id, user.email, user.role);
+    return { token, user: this.sanitizeUser(user) };
   }
 
   private generateToken(userId: string, email: string, role: string) {

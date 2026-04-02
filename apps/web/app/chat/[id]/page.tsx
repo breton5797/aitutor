@@ -12,6 +12,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useGeminiLive } from '../../../lib/useGeminiLive';
 import { SupportedLanguage, LANGUAGES, TRANSLATIONS, PROMPT_MAP, VOICE_MAP } from '../../../lib/i18n';
+import { MathInput } from '../../../components/tutor/MathInput';
+import { MathDrawPad } from '../../../components/tutor/MathDrawPad';
+import { OcrPreviewBubble } from '../../../components/tutor/OcrPreviewBubble';
+import { MathRenderer } from '../../../components/tutor/MathRenderer';
+import { MathOcrResult } from '../../../types/math';
 
 const QUICK_ACTIONS = (t: Record<string, string>) => [
   { label: t.concept_mode, emoji: '📘', prompt: '개념 설명을 요청합니다. 쉬운 말로, 비유를 사용해서, 한 번에 하나씩 설명해줘.' },
@@ -44,6 +49,51 @@ export default function ChatPage() {
   const { lang, setLang } = useLanguageStore();
 
   const t = TRANSLATIONS[lang];
+
+  const [ocrState, setOcrState] = useState<{
+    status: 'idle' | 'processing' | 'preview'
+    previewUrl: string
+    result: MathOcrResult | null
+  }>({ status: 'idle', previewUrl: '', result: null })
+  const [showDrawPad, setShowDrawPad] = useState(false)
+
+  const handleOcrStart = (previewUrl: string) => {
+    setOcrState({ status: 'processing', previewUrl, result: null })
+  }
+
+  const handleOcrComplete = (result: MathOcrResult) => {
+    setOcrState({ status: 'preview', previewUrl: result.imagePreviewUrl, result })
+  }
+
+  const handleOcrError = (error: string) => {
+    setOcrState({ status: 'idle', previewUrl: '', result: null })
+    // toast error?
+  }
+
+  const handleDrawSubmit = async (imageDataUrl: string) => {
+    setShowDrawPad(false)
+    const base64 = imageDataUrl.split(',')[1]
+    const previewUrl = imageDataUrl
+
+    handleOcrStart(previewUrl)
+
+    const response = await fetch('/api/math-ocr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: base64, mimeType: 'image/png' }),
+    })
+
+    const data = await response.json()
+    if (data.latex) {
+      handleOcrComplete({
+        latex: data.latex,
+        confidence: data.confidence,
+        imagePreviewUrl: previewUrl,
+      })
+    } else {
+      handleOcrError('수식을 인식하지 못했습니다.')
+    }
+  }
 
   useEffect(() => {
     if (!user) { router.push('/auth/login'); return; }
@@ -169,6 +219,15 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
       disconnect();
     }
   }, [replyMode, disconnect]);
+
+  const handleOcrConfirm = (latex: string, userText: string) => {
+    const messageText = userText
+      ? `[수식 질문]\n$$${latex}$$\n\n${userText}`
+      : `[수식 질문]\n$$${latex}$$\n\n이 수식을 설명해주세요.`;
+    
+    sendMessage(messageText);
+    setOcrState({ status: 'idle', previewUrl: '', result: null });
+  };
 
   const sendMessage = async (content?: string) => {
     let text = content || input.trim();
@@ -368,7 +427,7 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
                     <img src={msg.attachmentUrl} alt="attachment" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px' }} />
                   </div>
                 )}
-                {msg.content}
+                <MathRenderer text={msg.content} className="text-sm leading-relaxed" />
                 </div>
                 <div className={styles.bubbleTime}>
                   {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true, locale: ko })}
@@ -500,11 +559,31 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
                 </button>
               )}
               
+              {ocrState.status !== 'idle' && (
+                <div style={{ paddingBottom: '8px' }}>
+                  <OcrPreviewBubble
+                    imagePreviewUrl={ocrState.previewUrl}
+                    latex={ocrState.result?.latex ?? ''}
+                    isProcessing={ocrState.status === 'processing'}
+                    onConfirm={handleOcrConfirm}
+                    onRetry={() => setOcrState({ status: 'idle', previewUrl: '', result: null })}
+                    onCancel={() => setOcrState({ status: 'idle', previewUrl: '', result: null })}
+                  />
+                </div>
+              )}
+
+              {showDrawPad && (
+                <MathDrawPad
+                  onSubmit={handleDrawSubmit}
+                  onClose={() => setShowDrawPad(false)}
+                />
+              )}
+
               {attachment && (
                 <div style={{ position: 'relative', display: 'inline-block', marginBottom: '8px', alignSelf: 'flex-start' }}>
                   <img src={attachment} alt="Upload Preview" style={{ height: '60px', borderRadius: '8px', border: '1px solid #ccc' }} />
                   <button
-                    onClick={() => { setAttachment(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
+                    onClick={() => { setAttachment(null); setOcrState({ status: 'idle', previewUrl: '', result: null }); }}
                     style={{ position: 'absolute', top: -8, right: -8, background: '#ef4444', color: 'white', border: 'none', borderRadius: '50%', width: 24, height: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   >
                     ×
@@ -513,31 +592,13 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
               )}
 
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', width: '100%' }}>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  accept="image/*" 
-                  style={{ display: 'none' }} 
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onloadend = () => setAttachment(reader.result as string);
-                      reader.readAsDataURL(file);
-                    }
-                  }} 
+                <MathInput
+                  onOcrStart={handleOcrStart}
+                  onOcrComplete={handleOcrComplete}
+                  onOcrError={handleOcrError}
+                  onDrawPadOpen={() => setShowDrawPad(true)}
+                  disabled={sending}
                 />
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{ 
-                    background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', 
-                    padding: '8px', opacity: 0.6, transition: '0.2s' 
-                  }}
-                  onMouseOver={e => e.currentTarget.style.opacity = '1'}
-                  onMouseOut={e => e.currentTarget.style.opacity = '0.6'}
-                >
-                  📎
-                </button>
                 <textarea
                   ref={inputRef}
                   className={styles.input}

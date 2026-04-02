@@ -16,7 +16,7 @@ const schema = z.object({
   name: z.string().min(2, '이름은 2자 이상이어야 해'),
   email: z.string().email('올바른 이메일 형식이어야 해'),
   password: z.string().min(6, '비밀번호는 6자 이상이어야 해'),
-  grade: z.string().min(1, '학년을 선택해줘'),
+  grade: z.string().min(1, '그룹을 선택해줘'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -69,9 +69,9 @@ export default function SignupPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label">학년</label>
+            <label className="form-label">그룹 (연령/분야)</label>
             <select {...register('grade')} className="form-input">
-              <option value="">학년 선택</option>
+              <option value="">그룹 선택</option>
               {Object.entries(GRADE_LABELS).map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
@@ -105,6 +105,24 @@ export default function SignupPage() {
             {loading ? '가입 중...' : '회원가입 하기 🚀'}
           </button>
         </form>
+
+        <div style={{ margin: '24px 0', borderBottom: '1px solid #e5e7eb', textAlign: 'center' }}>
+          <span style={{ background: 'white', padding: '0 10px', color: '#6b7280', position: 'relative', top: '10px' }}>
+            또는 간편 가입
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+          <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/google`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#ffffff', color: '#374151', border: '1px solid #d1d5db', padding: '10px', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}>
+            🚀 구글로 가입하기
+          </a>
+          <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/naver`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#03C75A', color: '#ffffff', border: 'none', padding: '10px', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}>
+            N 네이버로 가입하기
+          </a>
+          <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/kakao`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FEE500', color: '#374151', border: 'none', padding: '10px', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}>
+            💬 카카오로 가입하기
+          </a>
+        </div>
 
         <p className={styles.footer}>
           이미 계정이 있어?{' '}

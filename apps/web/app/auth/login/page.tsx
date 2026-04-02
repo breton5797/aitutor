@@ -90,6 +90,24 @@ export default function LoginPage() {
           </button>
         </form>
 
+        <div style={{ margin: '24px 0', borderBottom: '1px solid #e5e7eb', textAlign: 'center' }}>
+          <span style={{ background: 'white', padding: '0 10px', color: '#6b7280', position: 'relative', top: '10px' }}>
+            또는 간편 로그인
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/google`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#ffffff', color: '#374151', border: '1px solid #d1d5db', padding: '10px', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}>
+            🚀 구글로 시작하기
+          </a>
+          <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/naver`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#03C75A', color: '#ffffff', border: 'none', padding: '10px', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}>
+            N 네이버로 시작하기
+          </a>
+          <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/kakao`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FEE500', color: '#374151', border: 'none', padding: '10px', borderRadius: '8px', textDecoration: 'none', fontWeight: 600 }}>
+            💬 카카오로 시작하기
+          </a>
+        </div>
+
         <p className={styles.footer}>
           아직 계정이 없어?{' '}
           <Link href="/auth/signup" className={styles.link}>회원가입</Link>

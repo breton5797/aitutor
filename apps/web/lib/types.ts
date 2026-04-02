@@ -1,4 +1,4 @@
-export type Grade = 'MIDDLE_1' | 'MIDDLE_2' | 'MIDDLE_3' | 'HIGH_1' | 'HIGH_2' | 'HIGH_3';
+export type Grade = 'ELEMENTARY' | 'MIDDLE_1' | 'MIDDLE_2' | 'MIDDLE_3' | 'HIGH_1' | 'HIGH_2' | 'HIGH_3' | 'COLLEGE' | 'WORKER' | 'CERTIFICATION' | 'SENIOR' | 'GENERAL';
 export type Subject = 'ENGLISH' | 'MATH' | 'SCIENCE' | 'HISTORY';
 export type Role = 'STUDENT' | 'ADMIN';
 export type ExplainStyle = 'SHORT' | 'DETAILED';
@@ -93,10 +93,16 @@ export const SUBJECT_BG: Record<Subject, string> = {
 };
 
 export const GRADE_LABELS: Record<Grade, string> = {
+  ELEMENTARY: '초등학생 / 유아',
   MIDDLE_1: '중학교 1학년',
   MIDDLE_2: '중학교 2학년',
   MIDDLE_3: '중학교 3학년',
   HIGH_1: '고등학교 1학년',
   HIGH_2: '고등학교 2학년',
   HIGH_3: '고등학교 3학년',
+  COLLEGE: '대학생',
+  WORKER: '직장인 / 실무자',
+  CERTIFICATION: '자격증/어학 시험 준비생',
+  SENIOR: '시니어 (디지털 튜터)',
+  GENERAL: '일반 / 글로벌 사용자',
 };

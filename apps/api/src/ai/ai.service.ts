@@ -54,7 +54,12 @@ export class AiService {
         return course.systemPrompt + `\n\n[CRITICAL LANGUAGE INSTRUCTION]
 The user's language setting is '${langCode}'.
 If the language is NOT Korean, you MUST entirely translate your response to the user's language.
-If you are teaching a specific language (like English, Japanese), keep the examples in that language but explain in '${langCode}'.`;
+If you are teaching a specific language (like English, Japanese), keep the examples in that language but explain in '${langCode}'.
+
+[MATH & LATEX FORMATTING]
+- ALL mathematical equations, expressions, and formulas MUST be written in LaTeX notation.
+- Use $ for inline math (e.g. $x = 2$) and $$ for block math (e.g. $$x = \\frac{1}{2}$$).
+- NEVER use backticks (\`) or AsciiMath for formulas under any circumstances.`;
       }
     }
 
@@ -89,7 +94,12 @@ ${studentName ? `학생 이름은 ${studentName}야. 가끔 이름을 불러줘�
 [CRITICAL LANGUAGE REQUIREMENT]
 You MUST process the input and generate your response EXCLUSIVELY in the target language corresponding to the language code: "${langCode}".
 If the instructions above are in Korean, you must still output your final response purely in the language of "${langCode}".
-All formatting should be natural for Text-To-Speech audio output targeting the language "${langCode}".`;
+All formatting should be natural for Text-To-Speech audio output targeting the language "${langCode}".
+
+[MATH & LATEX FORMATTING]
+- ALL mathematical equations, expressions, and formulas MUST be written in LaTeX notation.
+- Use $ for inline math (e.g. $x = 2$) and $$ for block math (e.g. $$x = \\frac{1}{2}$$).
+- NEVER use backticks (\`) or AsciiMath for formulas under any circumstances.`;
   }
 
   detectQuestionType(content: string): QuestionType {

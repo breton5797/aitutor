@@ -133,7 +133,11 @@ ${course.systemPrompt}
 [CRITICAL LANGUAGE INSTRUCTION]
 You MUST respond EXCLUSIVELY in ${LANGUAGES[lang]}. 
 Ignore any implied language from the prompt translation if it differs, and ONLY generate output in ${LANGUAGES[lang]}.
-Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken naturally in ${LANGUAGES[lang]}.
+
+[MATH & LATEX FORMATTING]
+- ALL mathematical equations, expressions, and formulas MUST be written in LaTeX notation.
+- Use $ for inline math (e.g. $x = 2$) and $$ for block math (e.g. $$x = \\frac{1}{2}$$).
+- NEVER use backticks (\`) or AsciiMath for formulas under any circumstances.
 ` : `
 ${PROMPT_MAP[lang]}
 
@@ -165,8 +169,12 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
 
 [Additional Rules]
 - Keep sentences short (under 25 words).
-- Explain math/formulas in words.
-- Never use cold feedback like "You're wrong".
+- Explain math/formulas in words, but ALWAYS wrap mathematical expressions in LaTeX delimiters ($ or $$).
+
+[MATH & LATEX FORMATTING]
+- ALL mathematical equations, expressions, and formulas MUST be written in LaTeX notation.
+- Use $ for inline math (e.g. $x = 2$) and $$ for block math (e.g. $$x = \\frac{1}{2}$$).
+- NEVER use backticks (\`) or AsciiMath for formulas under any circumstances.
 `;
 
   const { isConnected, isSpeaking, error, toggleConnect, connect, disconnect, sendText, pauseAudio, resumeAudio } = useGeminiLive({

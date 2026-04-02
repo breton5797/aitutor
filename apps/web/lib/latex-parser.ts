@@ -17,11 +17,11 @@ export function parseLatexSegments(text: string): Array<
 > {
   const segments: ReturnType<typeof parseLatexSegments> = []
   // $$...$$ 블록 수식 먼저 처리 (인라인보다 우선)
-  const blockRe = /\$\$([\s\S]*?)\$\$/g
-  const inlineRe = /\$((?:[^$\\]|\\.)*?)\$/g
+  const blockRe = /\$\$([\s\S]*?)\$\$|\\\[([\s\S]*?)\\\]/g
+  const inlineRe = /\$((?:[^$\\]|\\.)*?)\$|\\\(((?:[^)\\]|\\.)*?)\\\)/g
 
   let lastIndex = 0
-  const combined = /(\$\$[\s\S]*?\$\$|\$(?:[^$\\]|\\.)*?\$)/g
+  const combined = /(\$\$[\s\S]*?\$\$|\\\[[\s\S]*?\\\]|\$(?:[^$\\]|\\.)*?\$|\\\((?:[^)\\]|\\.)*?\\\))/g
   let match: RegExpExecArray | null
 
   while ((match = combined.exec(text)) !== null) {
@@ -31,6 +31,10 @@ export function parseLatexSegments(text: string): Array<
     const raw = match[0]
     if (raw.startsWith('$$')) {
       segments.push({ type: 'block', latex: raw.slice(2, -2).trim() })
+    } else if (raw.startsWith('\\[')) {
+      segments.push({ type: 'block', latex: raw.slice(2, -2).trim() })
+    } else if (raw.startsWith('\\(')) {
+      segments.push({ type: 'inline', latex: raw.slice(2, -2).trim() })
     } else {
       segments.push({ type: 'inline', latex: raw.slice(1, -1).trim() })
     }

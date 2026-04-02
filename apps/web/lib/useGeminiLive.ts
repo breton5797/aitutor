@@ -105,7 +105,7 @@ export function useGeminiLive({
     try {
       const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
       if (!apiKey) {
-        throw new Error('NEXT_PUBLIC_GEMINI_API_KEY is missing in your .env.local file.');
+        throw new Error('NEXT_PUBLIC_GEMINI_API_KEY 환경변수가 설정되지 않았습니다. Vercel 환경변수를 확인해 주세요.');
       }
 
       const ai = new GoogleGenAI({ apiKey });
@@ -127,7 +127,7 @@ export function useGeminiLive({
       }
 
       const session = await ai.live.connect({
-        model: 'gemini-3.1-flash-live-preview',
+        model: 'gemini-2.0-flash-live-001',
         config: {
           responseModalities: ['audio'] as any,
           systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,

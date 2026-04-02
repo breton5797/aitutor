@@ -4,7 +4,7 @@ services:
     env: node
     plan: free
     region: singapore # 가장 한국과 가까운 리전
-    buildCommand: npm install && npx turbo run build --filter=api && cd apps/api && npx prisma generate && npx prisma db push
+    buildCommand: npm install && npm run build --workspace=api && cd apps/api && npx prisma generate && npx prisma db push
     startCommand: cd apps/api && npm run start:prod
     envVars:
       - key: DATABASE_URL
@@ -21,6 +21,8 @@ services:
         value: "https://your-vercel-frontend.vercel.app" # 프론트엔드 배포 완료 후 도메인으로 교체
       - key: NODE_ENV
         value: "production"
+      - key: NODE_VERSION
+        value: "20"
 
 databases:
   - name: aitutor-db

@@ -171,8 +171,10 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
   }, [replyMode, disconnect]);
 
   const sendMessage = async (content?: string) => {
-    const text = content || input.trim();
-    if (!text || sending) return;
+    let text = content || input.trim();
+    if ((!text && !attachment) || sending) return;
+    if (!text && attachment) text = '(첨부 파일 전송됨)'; // 빈 텍스트일 경우 백엔드 유효성 검사 우회 및 AI 인식 도움
+
     setInput('');
     setSending(true);
 
@@ -544,7 +546,7 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
-                      if (isConnected && input.trim()) {
+                      if (isConnected && (input.trim() || attachment)) {
                         // Optimistic UI for WebSocket
                         setMessages((prev) => [
                           ...prev,
@@ -552,13 +554,16 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
                             id: 'voice-req-' + Date.now() + Math.random(),
                             conversationId: id,
                             role: 'USER',
-                            content: input.trim(),
+                            content: input.trim() || '(첨부 파일 전송됨)',
+                            attachmentUrl: attachment,
                             questionType: 'casual',
                             createdAt: new Date().toISOString(),
                           } as any
                         ]);
-                        sendText(input.trim()); // Send to websocket
+                        sendText(input.trim() || '(첨부 파일 전송됨)'); // Send to websocket
                         setInput('');
+                        setAttachment(null);
+                        if(fileInputRef.current) fileInputRef.current.value = '';
                       } else {
                         sendMessage(); // Send to backend REST API
                       }
@@ -572,25 +577,28 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
                 <button
                   className={styles.sendBtn}
                   onClick={() => {
-                    if (isConnected && input.trim()) {
+                    if (isConnected && (input.trim() || attachment)) {
                        setMessages((prev) => [
                           ...prev,
                            {
                              id: 'voice-req-' + Date.now() + Math.random(),
                              conversationId: id,
                              role: 'USER',
-                             content: input.trim(),
+                             content: input.trim() || '(첨부 파일 전송됨)',
+                             attachmentUrl: attachment,
                              questionType: 'casual',
                              createdAt: new Date().toISOString(),
                            } as any
                        ]);
-                       sendText(input.trim());
+                       sendText(input.trim() || '(첨부 파일 전송됨)');
                        setInput('');
+                       setAttachment(null);
+                       if(fileInputRef.current) fileInputRef.current.value = '';
                     } else {
                        sendMessage();
                     }
                   }}
-                  disabled={!input.trim() || sending}
+                  disabled={!(input.trim() || attachment) || sending}
                   style={subject ? { background: `linear-gradient(135deg, ${uiThemeColor}88, ${uiThemeColor})` } : {}}
                 >
                   {sending ? '⏳' : '→'}

@@ -617,6 +617,7 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
                   onOcrStart={handleOcrStart}
                   onOcrComplete={handleOcrComplete}
                   onOcrError={handleOcrError}
+                  onImageReady={(dataUrl) => setAttachment(dataUrl)}
                   onDrawPadOpen={() => setShowDrawPad(true)}
                   disabled={sending}
                 />

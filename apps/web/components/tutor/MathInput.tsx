@@ -8,6 +8,7 @@ interface Props {
   onOcrStart: (previewUrl: string) => void
   onOcrComplete: (result: MathOcrResult) => void
   onOcrError: (error: string) => void
+  onImageReady?: (dataUrl: string) => void  // 이미지 직접 첨부용
   onDrawPadOpen: () => void
   disabled?: boolean
 }
@@ -16,6 +17,7 @@ export function MathInput({
   onOcrStart,
   onOcrComplete,
   onOcrError,
+  onImageReady,
   onDrawPadOpen,
   disabled,
 }: Props) {
@@ -26,13 +28,16 @@ export function MathInput({
     const resized = await resizeImageIfNeeded(file)
     const previewUrl = URL.createObjectURL(resized)
 
+    // base64 data URL 생성 후 즉시 첨부 (OCR 결과와 무관하게)
+    const base64 = await fileToBase64(resized)
+    const mimeType = getImageMimeType(resized)
+    const dataUrl = `data:${mimeType};base64,${base64}`
+    if (onImageReady) onImageReady(dataUrl)
+
     // 처리 시작 알림
     onOcrStart(previewUrl)
 
     try {
-      const base64 = await fileToBase64(resized)
-      const mimeType = getImageMimeType(resized)
-
       const response = await fetch('/api/math-ocr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -42,7 +47,7 @@ export function MathInput({
       const data = await response.json()
 
       if (!response.ok) throw new Error(data.error || 'OCR 실패')
-      if (data.hasNoMath) throw new Error('수식을 찾을 수 없어요. 수식이 있는 부분을 다시 촬영해주세요.')
+      if (data.hasNoMath) throw new Error('수식을 찾을 수 없어요. 이미지를 첨부 파일로 전송합니다.')
 
       onOcrComplete({
         latex: data.latex,

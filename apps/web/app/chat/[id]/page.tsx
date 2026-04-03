@@ -266,13 +266,18 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
       
       const newAiMessage = res.data.aiMessage;
       if (res.data.audioBase64) {
+        const audioDataUrl = `data:audio/wav;base64,${res.data.audioBase64}`;
         newAiMessage.audioBase64 = res.data.audioBase64;
-        
         try {
-          const audio = new Audio(`data:audio/mp3;base64,${res.data.audioBase64}`);
-          audio.play().catch(err => console.error("Auto-play blocked", err));
+          const audio = new Audio(audioDataUrl);
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(() => {
+              // Autoplay blocked on mobile — user can tap play button in message
+            });
+          }
         } catch (e) {
-          console.error("Audio playback error", e);
+          console.error('Audio playback error', e);
         }
       }
 
@@ -442,7 +447,7 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
                   {msg.audioBase64 && (
                     <button 
                       className={styles.playBtn}
-                      onClick={() => new Audio(`data:audio/mp3;base64,${msg.audioBase64}`).play()}
+                      onClick={() => new Audio(`data:audio/wav;base64,${msg.audioBase64}`).play()}
                       title="다시 듣기"
                     >
                       🔊

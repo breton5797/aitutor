@@ -4,6 +4,33 @@ import { GoogleGenAI } from '@google/genai';
 import { Subject, QuestionType, ExplainStyle } from '@prisma/client';
 import { getCourse, getSegment } from '../config/segments';
 
+/** PCM16LE (24kHz, mono) → WAV base64 */
+function pcmBase64ToWavBase64(pcmBase64: string): string {
+  const pcmBuf = Buffer.from(pcmBase64, 'base64');
+  const sampleRate = 24000;
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const dataSize = pcmBuf.length;
+  const wavBuf = Buffer.alloc(44 + dataSize);
+  wavBuf.write('RIFF', 0);
+  wavBuf.writeUInt32LE(36 + dataSize, 4);
+  wavBuf.write('WAVE', 8);
+  wavBuf.write('fmt ', 12);
+  wavBuf.writeUInt32LE(16, 16);
+  wavBuf.writeUInt16LE(1, 20);          // PCM
+  wavBuf.writeUInt16LE(numChannels, 22);
+  wavBuf.writeUInt32LE(sampleRate, 24);
+  wavBuf.writeUInt32LE(byteRate, 28);
+  wavBuf.writeUInt16LE(blockAlign, 32);
+  wavBuf.writeUInt16LE(bitsPerSample, 34);
+  wavBuf.write('data', 36);
+  wavBuf.writeUInt32LE(dataSize, 40);
+  pcmBuf.copy(wavBuf, 44);
+  return wavBuf.toString('base64');
+}
+
 @Injectable()
 export class AiService {
   private openai: OpenAI;
@@ -189,7 +216,10 @@ All formatting should be natural for Text-To-Speech audio output targeting the l
           for (const part of response.candidates[0].content.parts) {
             if (part.text) text += part.text;
             if ((part as any).inlineData?.data) {
-              audioBase64 = (part as any).inlineData.data;
+              const rawBase64 = (part as any).inlineData.data;
+              const mimeType: string = (part as any).inlineData.mimeType || 'audio/pcm';
+              // Convert PCM to WAV for broad browser/mobile compatibility
+              audioBase64 = mimeType.includes('pcm') ? pcmBase64ToWavBase64(rawBase64) : rawBase64;
             }
           }
         }

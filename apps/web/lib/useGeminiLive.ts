@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from 'react';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Modality } from '@google/genai';
 
 function base64ToArrayBuffer(base64: string) {
   const binaryString = window.atob(base64);
@@ -27,6 +27,7 @@ export function useGeminiLive({
   voiceName?: string;
 }) {
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -97,11 +98,14 @@ export function useGeminiLive({
     }
 
     setIsConnected(false);
+    setIsConnecting(false);
     setIsSpeaking(false);
   }, []);
 
   const connect = useCallback(async () => {
+    if (isConnecting || isConnected) return;
     setError(null);
+    setIsConnecting(true);
     try {
       const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
       if (!apiKey) {
@@ -127,9 +131,9 @@ export function useGeminiLive({
       }
 
       const session = await ai.live.connect({
-        model: 'gemini-2.0-flash-live-001',
+        model: 'gemini-3.1-flash-live-preview',
         config: {
-          responseModalities: ['audio'] as any,
+          responseModalities: [Modality.AUDIO],
           systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
           speechConfig: {
             voiceConfig: {
@@ -140,7 +144,7 @@ export function useGeminiLive({
         callbacks: {
           onopen: () => {
             setIsConnected(true);
-            // Send initial connection text to say hello to Gemini!
+            setIsConnecting(false);
             try {
                session.sendRealtimeInput({ text: '안녕하세요, 준비됐어? 내가 말할 때까지 기다렸다가 대답해줘!' });
             } catch(e) {}
@@ -187,12 +191,19 @@ export function useGeminiLive({
           },
           onerror: (err: any) => {
             console.error('Gemini Live API Error:', err);
-            setError(err.message || 'Gemini connection error');
+            const msg = err?.message || String(err) || 'Gemini 연결 오류가 발생했습니다.';
+            setError(msg);
             disconnect();
           },
           onclose: () => {
             console.log('Gemini Live WebSocket Closed');
-            disconnect();
+            if (sessionRef.current) {
+              disconnect();
+            } else {
+              setIsConnected(false);
+              setIsConnecting(false);
+              setIsSpeaking(false);
+            }
           },
         },
       });
@@ -235,7 +246,7 @@ export function useGeminiLive({
         processor.connect(audioCtx.destination);
       }
     } catch (err: any) {
-      console.error('Failed to initialize Audio/Gemini Live:', err);
+      setIsConnecting(false);
       if (err.name === 'NotFoundError' || err.message?.includes('Requested device not found')) {
         setError("마이크를 찾을 수 없습니다. PC나 휴대폰에 마이크가 정상적으로 연결되어 있는지 확인해 주세요.");
       } else if (err.name === 'NotAllowedError') {
@@ -245,7 +256,7 @@ export function useGeminiLive({
       }
       disconnect();
     }
-  }, [systemInstruction, onMessage, disconnect]);
+  }, [systemInstruction, onMessage, disconnect, isConnecting, isConnected]);
 
   const toggleConnect = useCallback(() => {
     if (isConnected) disconnect();
@@ -270,5 +281,5 @@ export function useGeminiLive({
     }
   }, []);
 
-  return { isConnected, isSpeaking, error, toggleConnect, sendText, connect, disconnect, pauseAudio, resumeAudio };
+  return { isConnected, isConnecting, isSpeaking, error, toggleConnect, sendText, connect, disconnect, pauseAudio, resumeAudio };
 }

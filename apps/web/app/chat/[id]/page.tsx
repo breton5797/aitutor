@@ -177,7 +177,7 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
 - NEVER use backticks (\`) or AsciiMath for formulas under any circumstances.
 `;
 
-  const { isConnected, isSpeaking, error, toggleConnect, connect, disconnect, sendText, pauseAudio, resumeAudio } = useGeminiLive({
+  const { isConnected, isConnecting, isSpeaking, error: voiceError, toggleConnect, connect, disconnect, sendText, pauseAudio, resumeAudio } = useGeminiLive({
     systemInstruction: SYSTEM_PROMPT,
     audioEnabled,
     voiceName: VOICE_MAP[lang].voiceName,
@@ -561,10 +561,18 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
                       <span className={styles.pulseDot} style={{ background: '#ef4444' }}></span>
                       {isSpeaking ? 'AI Tutor Speaking...' : t.mic_on}
                     </>
+                  ) : isConnecting ? (
+                    <>연결 중...⏳</>
                   ) : (
                     <>{t.mic_connect}</>
                   )}
                 </button>
+              )}
+
+              {replyMode === 'VOICE' && voiceError && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', color: '#dc2626', display: 'flex', gap: '8px' }}>
+                  <span>⚠️</span><span>{voiceError}</span>
+                </div>
               )}
               
               {ocrState.status !== 'idle' && (
@@ -674,9 +682,9 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
                 </button>
               </div>
             </div>
-            {error && (
+            {voiceError && (
               <div style={{ position: 'absolute', top: -30, color: 'red', fontSize: '12px' }}>
-                오류: {error}
+                오류: {voiceError}
               </div>
             )}
           </div>

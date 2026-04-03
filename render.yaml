@@ -3,30 +3,23 @@ services:
     name: aitutor-api
     env: node
     plan: free
-    region: singapore # 가장 한국과 가까운 리전
-    buildCommand: export NODE_ENV=development && npm install && npm run build --workspace=api && cd apps/api && npx prisma db push
+    region: singapore
+    buildCommand: npm install && npm run build --workspace=api && cd apps/api && npx prisma db push
     startCommand: cd apps/api && npm run start:prod
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: aitutor-db
-          property: connectionString
+        value: "postgresql://neondb_owner:npg_cLHyvTr8KIi2@ep-holy-thunder-a1hnghmq.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
       - key: JWT_SECRET
         generateValue: true
       - key: STRIPE_SECRET_KEY
-        value: "sk_test_placeholder" # 나중에 Stripe 대시보드에서 받은 값으로 교체하세요
+        value: "sk_test_placeholder"
       - key: STRIPE_WEBHOOK_SECRET
         value: "whsec_placeholder"
       - key: FRONTEND_URL
-        value: "https://your-vercel-frontend.vercel.app" # 프론트엔드 배포 완료 후 도메인으로 교체
+        value: "https://nuricampus.com"
       - key: NODE_ENV
         value: "production"
       - key: NODE_VERSION
         value: "20"
-
-databases:
-  - name: aitutor-db
-    plan: free
-    region: singapore
-    databaseName: aitutor
-    user: aitutor_user
+      - key: RENDER_EXTERNAL_URL
+        sync: false

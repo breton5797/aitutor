@@ -231,27 +231,52 @@ All formatting should be natural for Text-To-Speech audio output targeting the l
 
       return { text: '현재 AI 음성 서비스에 일시적인 문제가 있어요. 잠시 후 다시 시도해 주세요!' };
     } else {
-      const openaiMessages: any[] = [
-        { role: 'system', content: systemPrompt },
-        ...messages.map(m => {
-          if (m.attachmentUrl?.startsWith('data:image')) {
-            const content: any[] = [];
-            if (m.content) content.push({ type: 'text', text: m.content });
-            content.push({ type: 'image_url', image_url: { url: m.attachmentUrl } });
-            return { role: m.role, content };
-          }
-          return { role: m.role, content: m.content || ' ' }; // default strings
-        })
-      ];
+      // TEXT mode: Gemini 2.5 Flash (supports text + images natively, no OpenAI key needed)
+      const geminiMessages: Array<{ role: string; parts: any[] }> = [];
+      let lastRole = '';
 
-      const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: openaiMessages,
-        max_tokens: 1500,
-        temperature: 0.7,
+      for (const m of messages.slice(0, -1)) {
+        const role = m.role === 'assistant' ? 'model' : 'user';
+        if (role === lastRole) continue;
+        const parts: any[] = [];
+        if (m.content && m.content.trim()) parts.push({ text: m.content });
+        if (m.attachmentUrl?.startsWith('data:')) {
+          const [header, base64] = m.attachmentUrl.split(',');
+          const mimeType = header.replace('data:', '').replace(';base64', '');
+          parts.push({ inlineData: { mimeType, data: base64 } });
+        }
+        if (parts.length > 0) {
+          geminiMessages.push({ role, parts });
+          lastRole = role;
+        }
+      }
+
+      const lastMessage = messages[messages.length - 1];
+      const lastParts: any[] = [];
+      if (lastMessage.content && lastMessage.content.trim()) {
+        lastParts.push({ text: lastMessage.content });
+      }
+      if (lastMessage.attachmentUrl?.startsWith('data:')) {
+        const [header, base64] = lastMessage.attachmentUrl.split(',');
+        const mimeType = header.replace('data:', '').replace(';base64', '');
+        lastParts.push({ inlineData: { mimeType, data: base64 } });
+      }
+
+      const textResponse = await this.gemini.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          ...geminiMessages,
+          { role: 'user', parts: lastParts },
+        ],
+        config: { systemInstruction: systemPrompt },
       });
 
-      return { text: response.choices[0].message.content || '죄송해, 잠깐 문제가 생겼어.' };
+      const text = textResponse.candidates?.[0]?.content?.parts
+        ?.map((p: any) => p.text)
+        .filter(Boolean)
+        .join('') || '죄송해, 잠깐 문제가 생겼어.';
+
+      return { text };
     }
   }
 }

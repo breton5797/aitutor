@@ -11,7 +11,8 @@ export class AiService {
 
   constructor() {
     this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: process.env.OPENAI_API_KEY || 'sk-dummy-not-configured',
+      dangerouslyAllowBrowser: false,
     });
     this.gemini = new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY || 'dummy_key',

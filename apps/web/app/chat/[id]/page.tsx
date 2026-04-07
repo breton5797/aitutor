@@ -41,6 +41,7 @@ export default function ChatPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [recNotice, setRecNotice] = useState<any>(null);
   const [upgradeNotice, setUpgradeNotice] = useState<string | null>(null);
+  const [audioReadyId, setAudioReadyId] = useState<string | null>(null); // 모바일 autoplay 차단 시
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -274,11 +275,12 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
           const playPromise = audio.play();
           if (playPromise !== undefined) {
             playPromise.catch(() => {
-              // Autoplay blocked on mobile — user can tap play button in message
+              // 모바일 autoplay 차단 → 재생 대기 상태 표시
+              setAudioReadyId(newAiMessage.id);
             });
           }
         } catch (e) {
-          console.error('Audio playback error', e);
+          setAudioReadyId(newAiMessage.id);
         }
       }
 
@@ -476,9 +478,31 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
                 )}
                 <MathRenderer text={msg.content} className="text-sm leading-relaxed" />
                 </div>
+                {/* 음성 재생 영역 */}
+                {msg.audioBase64 && audioReadyId === msg.id && (
+                  <button
+                    onClick={() => {
+                      new Audio(`data:audio/wav;base64,${msg.audioBase64}`).play();
+                      setAudioReadyId(null);
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      margin: '8px 0 4px',
+                      padding: '8px 14px',
+                      borderRadius: 10,
+                      background: 'linear-gradient(135deg, #3B7DFF22, #00D4FF22)',
+                      border: '1px solid #3B7DFF55',
+                      color: '#3B7DFF',
+                      fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                      width: '100%', justifyContent: 'center',
+                    }}
+                  >
+                    🔊 탭하여 음성 재생
+                  </button>
+                )}
                 <div className={styles.bubbleTime}>
                   {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true, locale: ko })}
-                  {msg.audioBase64 && (
+                  {msg.audioBase64 && audioReadyId !== msg.id && (
                     <button 
                       className={styles.playBtn}
                       onClick={() => new Audio(`data:audio/wav;base64,${msg.audioBase64}`).play()}

@@ -105,10 +105,15 @@ model User {
   recommendations Recommendation[]
 
   // SaaS & Gamification Relations
-  subscriptions Subscription[]
-  reports       Report[]
-  userStats     UserStats?
-  achievements  Achievement[]
+  subscriptions  Subscription[]
+  reports        Report[]
+  userStats      UserStats?
+  achievements   Achievement[]
+  payupBillingKey PayupBillingKey?
+
+  // 일일 메시지 제한
+  dailyMsgCount Int      @default(0)
+  dailyMsgReset DateTime @default(now())
 }
 
 model StudentProfile {
@@ -183,8 +188,20 @@ model Subscription {
   status    SubscriptionStatus @default(ACTIVE)
   startDate DateTime           @default(now())
   endDate   DateTime?
+  payupOrderId String?         // Payup 결제 주문 ID
   createdAt DateTime           @default(now())
   updatedAt DateTime           @updatedAt
+}
+
+// Payup 빌링키 (자동결제용)
+model PayupBillingKey {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  billingKey  String   // Payup 발급 빌링키
+  customerKey String   // Payup 고객키
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 // ==========================================

@@ -1,9 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { StatsService } from '../stats/stats.service';
 import { RecommendationService } from '../recommendation/recommendation.service';
 import { CreateConversationDto, SendMessageDto } from './dto/conversation.dto';
+
+// 플랜별 일일 메시지 한도
+const PLAN_DAILY_LIMIT: Record<string, number> = {
+  FREE: 5,
+  BASIC: 100,
+  PREMIUM: 500,
+  PARENT: 100, // PARENT는 BASIC과 동일
+};
 
 @Injectable()
 export class ConversationService {
@@ -57,6 +65,9 @@ export class ConversationService {
       where: { id: conversationId, userId },
     });
     if (!conversation) throw new NotFoundException('대화를 찾을 수 없습니다.');
+
+    // 플랜 확인 후 일일 메시지 제한 체크
+    await this.checkDailyLimit(userId);
 
     // 질문 유형 감지
     const questionType = this.aiService.detectQuestionType(dto.content);
@@ -184,5 +195,59 @@ export class ConversationService {
       HISTORY: '역사 학습',
     };
     return map[subject] || '새 대화';
+  }
+
+  /** 플랜별 일일 메시지 제한 확인 및 카운터 증가 */
+  private async checkDailyLimit(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        subscriptions: {
+          where: { status: 'ACTIVE' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+    if (!user) return;
+
+    const planType = user.subscriptions[0]?.planType || 'FREE';
+    const limit = PLAN_DAILY_LIMIT[planType] ?? 5;
+
+    // 날짜가 바뀌면 카운터 리셋
+    const now = new Date();
+    const resetDate = new Date(user.dailyMsgReset);
+    const needsReset =
+      now.getUTCFullYear() !== resetDate.getUTCFullYear() ||
+      now.getUTCMonth() !== resetDate.getUTCMonth() ||
+      now.getUTCDate() !== resetDate.getUTCDate();
+
+    if (needsReset) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { dailyMsgCount: 1, dailyMsgReset: now },
+      });
+      return; // 리셋 후 첫 메시지 → 허용
+    }
+
+    if (user.dailyMsgCount >= limit) {
+      const planLabel = { FREE: '무료', BASIC: 'BASIC', PREMIUM: 'PREMIUM', PARENT: 'BASIC' }[planType];
+      throw new HttpException(
+        {
+          statusCode: 402,
+          message: `오늘 ${planLabel} 플랜의 AI 응답 한도(${limit}회)를 초과했습니다. 업그레이드하면 더 많이 사용할 수 있어요!`,
+          upgradeRequired: true,
+          currentPlan: planType,
+          limit,
+        },
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    }
+
+    // 카운터 증가
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { dailyMsgCount: { increment: 1 } },
+    });
   }
 }

@@ -40,6 +40,7 @@ export default function ChatPage() {
   const [attachment, setAttachment] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [recNotice, setRecNotice] = useState<any>(null);
+  const [upgradeNotice, setUpgradeNotice] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -298,9 +299,16 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
         setRecNotice(res.data.recommendation);
         setTimeout(() => setRecNotice(null), 6000);
       }
-    } catch {
+    } catch (err: any) {
       setMessages((prev) => prev.filter((m) => m.id !== tempMsg.id));
-      setInput(text);
+      // 402: 일일 한도 초과
+      if (err?.response?.status === 402) {
+        const msg = err.response.data?.message || '오늘 AI 응답 한도를 초과했습니다.';
+        setUpgradeNotice(msg);
+        setTimeout(() => setUpgradeNotice(null), 8000);
+      } else {
+        setInput(text);
+      }
     } finally {
       setSending(false);
       inputRef.current?.focus();
@@ -374,6 +382,32 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
           {xpNotice && (
             <div className={styles.xpToast}>
               {xpNotice}
+            </div>
+          )}
+
+          {upgradeNotice && (
+            <div style={{
+              margin: '8px 16px',
+              padding: '14px 18px',
+              borderRadius: 12,
+              background: 'linear-gradient(135deg, #1c1a3a, #12152e)',
+              border: '1px solid rgba(255,107,53,0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexWrap: 'wrap',
+            }}>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 700, color: '#FF6B35', marginBottom: 3 }}>🔒 오늘 AI 응답 한도 초과</p>
+                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>{upgradeNotice}</p>
+              </div>
+              <button
+                onClick={() => window.location.href = '/pricing'}
+                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 800, background: 'linear-gradient(135deg, #FFD24C, #FF6B35)', color: '#0B0E2A', whiteSpace: 'nowrap' }}
+              >
+                업그레이드 →
+              </button>
             </div>
           )}
 

@@ -3,6 +3,8 @@ import './globals.css';
 import 'katex/dist/katex.min.css';
 import { Toaster } from 'react-hot-toast';
 
+import { WakeUp } from '../components/WakeUp';
+
 export const metadata: Metadata = {
   title: 'AI Tutor — 나만의 AI 선생님',
   description: '영어, 수학, 과학, 역사. 혼자 공부해도 옆에 선생님이 있는 것처럼.',
@@ -22,6 +24,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
+        <WakeUp />
         {children}
         <Toaster
           position="top-center"

@@ -27,6 +27,14 @@ export default function DashboardPage() {
   const { lang, setLang } = useLanguageStore();
   const t = TRANSLATIONS[lang];
 
+  // 구독 플랜 상태
+  const [planType, setPlanType] = useState<string>('FREE');
+  const [dailyCount, setDailyCount] = useState<number>(0);
+
+  const PLAN_LIMIT: Record<string, number> = { FREE: 5, BASIC: 100, PREMIUM: 500, PARENT: 100 };
+  const PLAN_COLOR: Record<string, string> = { FREE: '#8B92A8', BASIC: '#3B7DFF', PREMIUM: '#FFD24C' };
+  const PLAN_LABEL: Record<string, string> = { FREE: '무료', BASIC: 'BASIC', PREMIUM: 'PREMIUM', PARENT: 'BASIC' };
+
   useEffect(() => {
     if (!user) { router.push('/auth/login'); return; }
     fetchData();
@@ -34,14 +42,21 @@ export default function DashboardPage() {
 
   const fetchData = async () => {
     try {
-      const [recRes, recmRes, convRes] = await Promise.all([
+      const [recRes, recmRes, convRes, billingRes] = await Promise.all([
         api.get('/learning/records'),
         api.get('/learning/recommendations'),
         api.get('/conversations'),
+        api.get('/billing/status').catch(() => ({ data: { planType: 'FREE' } })),
       ]);
       setRecords(recRes.data.records);
       setRecommendations(recmRes.data);
       setRecentConversations(convRes.data.slice(0, 5));
+      setPlanType(billingRes.data.planType || 'FREE');
+      // 일일 카운터는 유저 정보에서 문의
+      const userRes = await api.get('/auth/me').catch(() => null);
+      if (userRes?.data?.dailyMsgCount !== undefined) {
+        setDailyCount(userRes.data.dailyMsgCount);
+      }
     } catch {
       // ignore
     } finally {
@@ -89,13 +104,53 @@ export default function DashboardPage() {
           </select>
         </div>
 
-        {/* Greeting */}
-        <div className={styles.greeting}>
+        {/* Greeting + Plan Badge */}
+        <div className={styles.greeting} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h1 className={styles.greetingTitle}>
               {getGreeting()} {user?.name}!
             </h1>
             <p className={styles.greetingDesc}>{t.greeting_desc}</p>
+          </div>
+
+          {/* 플랜 뱃지 + 사용량 */}
+          <div
+            onClick={() => router.push('/pricing')}
+            style={{
+              cursor: 'pointer',
+              padding: '12px 18px',
+              borderRadius: 14,
+              background: 'rgba(255,255,255,0.04)',
+              border: `1px solid ${PLAN_COLOR[planType] || '#8B92A8'}33`,
+              minWidth: 180,
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.08)'}
+            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)'}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: PLAN_COLOR[planType] || '#8B92A8' }}>
+                {PLAN_LABEL[planType] || 'FREE'} 플랜
+              </span>
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontWeight: 600 }}>
+                {planType === 'PREMIUM' ? '무제한' : `${dailyCount} / ${PLAN_LIMIT[planType] || 5}회`}
+              </span>
+            </div>
+            {/* 사용량 프로그레스 바 */}
+            {planType !== 'PREMIUM' && (
+              <div style={{ height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%',
+                  borderRadius: 2,
+                  background: `linear-gradient(90deg, ${PLAN_COLOR[planType] || '#8B92A8'}, ${PLAN_COLOR[planType] || '#8B92A8'}88)`,
+                  width: `${Math.min(100, (dailyCount / (PLAN_LIMIT[planType] || 5)) * 100)}%`,
+                  transition: 'width 0.5s ease',
+                }} />
+              </div>
+            )}
+            <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 6, textAlign: 'right' }}>
+              {planType === 'FREE' ? '업그레이드 하러가기 →' : '요금제 확인 →'}
+            </p>
           </div>
         </div>
 

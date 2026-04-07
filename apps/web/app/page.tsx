@@ -40,7 +40,9 @@ function useInView(threshold = 0.12) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setV(true); }, { threshold });
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting) setV(true);
+    }, { threshold });
     obs.observe(el);
     return () => obs.disconnect();
   }, [threshold]);
@@ -206,7 +208,8 @@ function ProblemSection() {
 /* ── Segment Tabs ── */
 function SegmentSection() {
   const [active, setActive] = useState(0);
-  const s = SEGMENTS[active];
+  // SEGMENTS always has 6 items; active is always in [0,5]
+  const s = SEGMENTS[active]!;
   const router = useRouter();
   return (
     <section id="section-1" style={{ padding: "100px 24px", background: C.navy, position: "relative" }}>

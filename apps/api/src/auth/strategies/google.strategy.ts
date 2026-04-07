@@ -9,9 +9,9 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     super({
       clientID: process.env.GOOGLE_CLIENT_ID || 'missing',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'missing',
-      callbackURL: isProd 
-        ? 'https://aitutor-api-production.up.railway.app/api/auth/google/callback' // fallback
-        : 'http://localhost:4000/api/auth/google/callback',
+      callbackURL: (process.env.BACKEND_URL || (isProd 
+        ? 'https://aitutor-api-production.up.railway.app'
+        : 'http://localhost:4000')) + '/api/auth/google/callback',
       scope: ['email', 'profile'],
     });
   }

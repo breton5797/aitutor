@@ -9,9 +9,9 @@ export class KakaoStrategy extends PassportStrategy(Strategy, 'kakao') {
     super({
       clientID: process.env.KAKAO_CLIENT_ID || 'missing',
       clientSecret: process.env.KAKAO_CLIENT_SECRET || '',
-      callbackURL: isProd 
-        ? 'https://aitutor-api-production.up.railway.app/api/auth/kakao/callback'
-        : 'http://localhost:4000/api/auth/kakao/callback',
+      callbackURL: (process.env.BACKEND_URL || (isProd 
+        ? 'https://aitutor-api-production.up.railway.app'
+        : 'http://localhost:4000')) + '/api/auth/kakao/callback',
     });
   }
 

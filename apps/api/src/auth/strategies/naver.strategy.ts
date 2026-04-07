@@ -9,9 +9,9 @@ export class NaverStrategy extends PassportStrategy(Strategy, 'naver') {
     super({
       clientID: process.env.NAVER_CLIENT_ID || 'missing',
       clientSecret: process.env.NAVER_CLIENT_SECRET || 'missing',
-      callbackURL: isProd 
-        ? 'https://aitutor-api-production.up.railway.app/api/auth/naver/callback'
-        : 'http://localhost:4000/api/auth/naver/callback',
+      callbackURL: (process.env.BACKEND_URL || (isProd 
+        ? 'https://aitutor-api-production.up.railway.app'
+        : 'http://localhost:4000')) + '/api/auth/naver/callback',
     });
   }
 

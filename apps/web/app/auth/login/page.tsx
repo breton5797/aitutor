@@ -14,6 +14,7 @@ import styles from '../auth.module.css';
 const schema = z.object({
   email: z.string().email('올바른 이메일 형식이어야 해'),
   password: z.string().min(1, '비밀번호를 입력해줘'),
+  autoLogin: z.boolean().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -78,6 +79,16 @@ export default function LoginPage() {
               placeholder="비밀번호를 입력해줘"
             />
             {errors.password && <p className="form-error">{errors.password.message}</p>}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#6b7280', margin: '-4px 0 12px 0' }}>
+            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+              <input type="checkbox" {...register('autoLogin')} style={{ marginRight: '6px' }} />
+              자동 로그인
+            </label>
+            <Link href="/auth/reset-password" style={{ color: '#6366f1', textDecoration: 'none' }}>
+              비밀번호 재설정
+            </Link>
           </div>
 
           <button

@@ -123,6 +123,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span>관리자</span>
           </Link>
         )}
+        <button
+          onClick={handleLogout}
+          className={styles.mobileNavItem}
+          style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
+        >
+          <span>🚪</span>
+          <span>로그아웃</span>
+        </button>
       </nav>
     </div>
   );

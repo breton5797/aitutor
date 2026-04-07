@@ -41,8 +41,21 @@ export class AuthService {
     const match = user.password && await bcrypt.compare(dto.password, user.password);
     if (!match) throw new UnauthorizedException('이메일 또는 비밀번호가 올바르지 않습니다.');
 
-    const token = this.generateToken(user.id, user.email, user.role);
+    const token = this.generateToken(user.id, user.email, user.role, dto.autoLogin);
     return { token, user: this.sanitizeUser(user) };
+  }
+
+  async resetPassword(dto: any) { // using any inline or import ResetPasswordDto if available
+    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (!user) throw new UnauthorizedException('가입되지 않은 이메일입니다.');
+    if (user.provider !== 'LOCAL') throw new UnauthorizedException('소셜 로그인 계정은 비밀번호를 변경할 수 없습니다.');
+    
+    const hashed = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({
+      where: { email: dto.email },
+      data: { password: hashed },
+    });
+    return { success: true };
   }
 
   async getMe(userId: string) {
@@ -93,8 +106,11 @@ export class AuthService {
     return { token, user: this.sanitizeUser(user) };
   }
 
-  private generateToken(userId: string, email: string, role: string) {
-    return this.jwtService.sign({ sub: userId, email, role });
+  private generateToken(userId: string, email: string, role: string, autoLogin?: boolean) {
+    return this.jwtService.sign(
+      { sub: userId, email, role },
+      autoLogin ? { expiresIn: '30d' } : undefined
+    );
   }
 
   private sanitizeUser(user: any) {

@@ -22,4 +22,15 @@ export class LoginDto {
 
   @IsString()
   password: string;
+
+  autoLogin?: boolean;
+}
+
+export class ResetPasswordDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @MinLength(6)
+  newPassword: string;
 }

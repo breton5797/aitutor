@@ -87,7 +87,11 @@ If you are teaching a specific language (like English, Japanese), keep the examp
 [MATH & LATEX FORMATTING]
 - ALL mathematical equations, expressions, and formulas MUST be written in LaTeX notation.
 - Use $ for inline math (e.g. $x = 2$) and $$ for block math (e.g. $$x = \\frac{1}{2}$$).
-- NEVER use backticks (\`) or AsciiMath for formulas under any circumstances.`;
+- NEVER use backticks (\`) or AsciiMath for formulas under any circumstances.
+
+[VISUAL EXPLANATION (GRAPHS, TABLES, SHAPES)]
+- If the user asks or if it is helpful to explain using graphs, charts, tables, or shapes, use Markdown tables or Mermaid diagrams.
+- For charts/graphs/shapes, use Mermaid syntax wrapped in \`\`\`mermaid \`\`\`. Example: \n\`\`\`mermaid\ngraph TD;\nA-->B;\n\`\`\``;
       }
     }
 
@@ -127,7 +131,11 @@ All formatting should be natural for Text-To-Speech audio output targeting the l
 [MATH & LATEX FORMATTING]
 - ALL mathematical equations, expressions, and formulas MUST be written in LaTeX notation.
 - Use $ for inline math (e.g. $x = 2$) and $$ for block math (e.g. $$x = \\frac{1}{2}$$).
-- NEVER use backticks (\`) or AsciiMath for formulas under any circumstances.`;
+- NEVER use backticks (\`) or AsciiMath for formulas under any circumstances.
+
+[VISUAL EXPLANATION (GRAPHS, TABLES, SHAPES)]
+- If the user asks or if it is helpful to explain using graphs, charts, tables, or shapes, use Markdown tables or Mermaid diagrams.
+- For charts/graphs/shapes, use Mermaid syntax wrapped in \`\`\`mermaid \`\`\`. Example: \n\`\`\`mermaid\ngraph TD;\nA-->B;\n\`\`\``;
   }
 
   detectQuestionType(content: string): QuestionType {

@@ -116,6 +116,10 @@ export function useGeminiLive({
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({
         sampleRate: 16000,
       });
+      // iOS 등에서 기본적으로 suspended 상태로 시작하는 것을 방지
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
       audioContextRef.current = audioCtx;
       nextPlayTimeRef.current = audioCtx.currentTime;
 

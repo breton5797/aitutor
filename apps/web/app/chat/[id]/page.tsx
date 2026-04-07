@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore, useLanguageStore } from '../../../lib/store';
 import api from '../../../lib/api';
 import { Message, SUBJECT_LABELS, SUBJECT_EMOJIS, SUBJECT_COLORS } from '../../../lib/types';
@@ -29,6 +29,9 @@ export default function ChatPage() {
   const params = useParams();
   const id = params.id as string;
   const user = useAuthStore((s) => s.user);
+  const searchParams = useSearchParams();
+  const initPrompt = searchParams.get('prompt');
+  const [initPromptSent, setInitPromptSent] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversation, setConversation] = useState<any>(null);
@@ -115,6 +118,11 @@ export default function ChatPage() {
       setMessages(msgRes.data);
       const conv = convRes.data.find((c: any) => c.id === id);
       setConversation(conv);
+
+      if (msgRes.data.length === 0 && initPrompt && !initPromptSent) {
+        setInitPromptSent(true);
+        setTimeout(() => sendMessage(`[추천 학습 시작]\n${initPrompt}\n\n이 내용에 대한 학습을 시작하겠습니다. 무엇부터 하면 좋을까요?`), 500);
+      }
     } catch {
       router.push('/dashboard');
     } finally {
@@ -140,6 +148,10 @@ Ignore any implied language from the prompt translation if it differs, and ONLY 
 - ALL mathematical equations, expressions, and formulas MUST be written in LaTeX notation.
 - Use $ for inline math (e.g. $x = 2$) and $$ for block math (e.g. $$x = \\frac{1}{2}$$).
 - NEVER use backticks (\`) or AsciiMath for formulas under any circumstances.
+
+[VISUAL EXPLANATION (GRAPHS, TABLES, SHAPES)]
+- If the user asks or if it is helpful to explain using graphs, charts, tables, or shapes, use Markdown tables or Mermaid diagrams.
+- For charts/graphs/shapes, use Mermaid syntax wrapped in \`\`\`mermaid \`\`\`. Example: \n\`\`\`mermaid\ngraph TD;\nA-->B;\n\`\`\`
 ` : `
 ${PROMPT_MAP[lang]}
 
@@ -177,6 +189,10 @@ Ensure all your responses are formatted for TTS (Text-To-Speech) and spoken natu
 - ALL mathematical equations, expressions, and formulas MUST be written in LaTeX notation.
 - Use $ for inline math (e.g. $x = 2$) and $$ for block math (e.g. $$x = \\frac{1}{2}$$).
 - NEVER use backticks (\`) or AsciiMath for formulas under any circumstances.
+
+[VISUAL EXPLANATION (GRAPHS, TABLES, SHAPES)]
+- If the user asks or if it is helpful to explain using graphs, charts, tables, or shapes, use Markdown tables or Mermaid diagrams.
+- For charts/graphs/shapes, use Mermaid syntax wrapped in \`\`\`mermaid \`\`\`. Example: \n\`\`\`mermaid\ngraph TD;\nA-->B;\n\`\`\`
 `;
 
   const { isConnected, isConnecting, isSpeaking, error: voiceError, toggleConnect, connect, disconnect, sendText, pauseAudio, resumeAudio } = useGeminiLive({

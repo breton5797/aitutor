@@ -64,9 +64,13 @@ export default function DashboardPage() {
     }
   };
 
-  const startChat = async (subject: Subject) => {
+  const startChat = async (subject: Subject, message?: string) => {
     const res = await api.post('/conversations', { subject });
-    router.push(`/chat/${res.data.id}`);
+    if (message) {
+      router.push(`/chat/${res.data.id}?prompt=${encodeURIComponent(message)}`);
+    } else {
+      router.push(`/chat/${res.data.id}`);
+    }
   };
 
   const getGreeting = () => {
@@ -167,7 +171,7 @@ export default function DashboardPage() {
                     '--accent': SUBJECT_COLORS[rec.subject],
                     '--bg': SUBJECT_BG[rec.subject],
                   } as React.CSSProperties}
-                  onClick={() => startChat(rec.subject)}
+                  onClick={() => startChat(rec.subject, rec.message)}
                 >
                   <div className={styles.recEmoji}>{SUBJECT_EMOJIS[rec.subject]}</div>
                   <div className={styles.recSubject}>{SUBJECT_LABELS[rec.subject]}</div>

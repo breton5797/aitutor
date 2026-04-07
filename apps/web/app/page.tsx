@@ -76,15 +76,18 @@ function TopNav({ activeTab, setActiveTab }: { activeTab: number; setActiveTab: 
           <span style={{ fontWeight: 900, fontSize: 18, color: C.white, letterSpacing: "-0.02em" }}>누리캠퍼스</span>
           <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 4, background: C.gold, color: C.navy, fontWeight: 800, marginLeft: 4 }}>OPEN</span>
         </div>
-        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+        <div className="mobile-hidden" style={{ display: "flex", gap: 4, alignItems: "center" }}>
           {tabs.map((t, i) => (
             <button key={i} onClick={() => { setActiveTab(i); document.getElementById(`section-${i}`)?.scrollIntoView({ behavior: "smooth" }); }}
               style={{ padding: "8px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "inherit", background: activeTab === i ? "rgba(59,125,255,0.2)" : "transparent", color: activeTab === i ? C.blueLight : "rgba(255,255,255,0.6)", transition: "all 0.2s" }}>
               {t}
             </button>
           ))}
+        </div>
+        <div style={{ display: "flex", alignItems: "center" }}>
           <button
             onClick={() => router.push("/auth/login")}
+            className="mobile-btn"
             style={{ marginLeft: 8, padding: "9px 18px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.2)", cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit", background: "transparent", color: "rgba(255,255,255,0.8)", transition: "all 0.2s" }}
             onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
             onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
@@ -92,7 +95,8 @@ function TopNav({ activeTab, setActiveTab }: { activeTab: number; setActiveTab: 
           </button>
           <button
             onClick={() => router.push("/auth/signup")}
-            style={{ marginLeft: 4, padding: "9px 22px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, fontFamily: "inherit", background: `linear-gradient(135deg, ${C.gold}, ${C.orange})`, color: C.navy, transition: "all 0.2s" }}
+            className="mobile-btn"
+            style={{ marginLeft: 4, padding: "9px 22px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, fontFamily: "inherit", background: `linear-gradient(135deg, ${C.gold}, ${C.orange})`, color: C.navy, transition: "all 0.2s", whiteSpace: "nowrap" }}
             onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.04)")}
             onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}>
             무료 체험 →
@@ -153,14 +157,14 @@ function Hero() {
       </Reveal>
 
       <Reveal delay={0.35}>
-        <div style={{ display: "flex", gap: 1, marginTop: 60, borderRadius: 16, overflow: "hidden", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+        <div className="hero-stats" style={{ display: "flex", gap: 1, marginTop: 60, borderRadius: 16, overflow: "hidden", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
           {[
             { num: "24/7", label: "학습 가능" },
             { num: "6+", label: "학습 대상" },
             { num: "30+", label: "과목·주제" },
             { num: "100%", label: "맞춤 설명" },
           ].map((s, i) => (
-            <div key={i} style={{ padding: "20px 32px", textAlign: "center", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+            <div key={i} className="hero-stat-item" style={{ padding: "20px 32px", textAlign: "center", borderRight: i < 3 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
               <div style={{ fontSize: 24, fontWeight: 900, background: `linear-gradient(135deg, ${C.gold}, ${C.cyan})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{s.num}</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 4, fontWeight: 500 }}>{s.label}</div>
             </div>
@@ -224,9 +228,10 @@ function SegmentSection() {
           </div>
         </Reveal>
 
-        <div style={{ display: "flex", justifyContent: "center", gap: 4, marginTop: 40, flexWrap: "wrap" }}>
+        <div className="mobile-segment-tabs" style={{ display: "flex", justifyContent: "center", gap: 4, marginTop: 40, flexWrap: "wrap" }}>
           {SEGMENTS.map((seg, i) => (
             <button key={i} onClick={() => setActive(i)}
+              className="segment-tab-btn"
               style={{ padding: "12px 22px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, fontFamily: "inherit", background: active === i ? seg.color : "rgba(255,255,255,0.06)", color: active === i ? C.white : "rgba(255,255,255,0.5)", transition: "all 0.25s", boxShadow: active === i ? `0 4px 20px ${seg.color}44` : "none" }}>
               <span style={{ marginRight: 6 }}>{seg.icon}</span>{seg.label}
             </button>
@@ -408,15 +413,15 @@ function FinalCTA() {
 function Footer() {
   return (
     <footer style={{ padding: "40px 24px", background: "#060818", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-      <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+      <div className="footer-container" style={{ maxWidth: 1000, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <div className="footer-logo" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
             <div style={{ width: 24, height: 24, borderRadius: 6, background: `linear-gradient(135deg, ${C.blue}, ${C.cyan})`, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 10 }}>N</div>
             <span style={{ fontWeight: 800, fontSize: 14, color: "rgba(255,255,255,0.6)" }}>누리캠퍼스</span>
           </div>
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.25)" }}>AI 기반 맞춤형 학습 플랫폼 · 모든 연령, 모든 목표</p>
         </div>
-        <div style={{ textAlign: "right" }}>
+        <div className="footer-right" style={{ textAlign: "right" }}>
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.25)" }}>문의: admin@nuricampus.com</p>
           <p style={{ fontSize: 11, color: "rgba(255,255,255,0.15)", marginTop: 4 }}>© 2026 NuriCampus. All rights reserved.</p>
         </div>
@@ -436,6 +441,17 @@ export default function LandingPage() {
         html { scroll-behavior: smooth; }
         @keyframes fadeIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
         @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+        @media (max-width: 768px) {
+          .mobile-hidden { display: none !important; }
+          .hero-stats { flex-direction: column !important; }
+          .hero-stat-item { width: 100% !important; padding: 16px 20px !important; border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.06) !important; }
+          .hero-stat-item:last-child { border-bottom: none !important; }
+          .mobile-btn { padding: 8px 12px !important; font-size: 12px !important; }
+          .footer-container { flex-direction: column !important; align-items: flex-start !important; gap: 24px !important; }
+          .footer-right { text-align: left !important; }
+          .segment-tab-btn { padding: 10px 16px !important; font-size: 13px !important; flex: 1 1 40% !important; text-align: left !important; display: flex !important; align-items: center !important; }
+        }
       `}</style>
       <TopNav activeTab={activeTab} setActiveTab={setActiveTab} />
       <Hero />

@@ -13,7 +13,7 @@ import { KakaoStrategy } from './strategies/kakao.strategy';
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'aitutor-secret',
-      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '1h' },
+      signOptions: { expiresIn: (process.env.JWT_EXPIRES_IN || '1h') as any },
     }),
   ],
   controllers: [AuthController],

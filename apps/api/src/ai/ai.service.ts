@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 import { GoogleGenAI } from '@google/genai';
+import Anthropic from '@anthropic-ai/sdk';
 import { Subject, QuestionType, ExplainStyle } from '@prisma/client';
 import { getCourse, getSegment } from '../config/segments';
 
@@ -35,6 +36,7 @@ function pcmBase64ToWavBase64(pcmBase64: string): string {
 export class AiService {
   private openai: OpenAI;
   private gemini: GoogleGenAI;
+  private anthropic: Anthropic;
 
   constructor() {
     this.openai = new OpenAI({
@@ -43,6 +45,9 @@ export class AiService {
     });
     this.gemini = new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY || 'dummy_key',
+    });
+    this.anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY || 'dummy_key',
     });
   }
 
@@ -135,7 +140,10 @@ All formatting should be natural for Text-To-Speech audio output targeting the l
 
 [VISUAL EXPLANATION (GRAPHS, TABLES, SHAPES)]
 - If the user asks or if it is helpful to explain using graphs, charts, tables, or shapes, use Markdown tables or Mermaid diagrams.
-- For charts/graphs/shapes, use Mermaid syntax wrapped in \`\`\`mermaid \`\`\`. Example: \n\`\`\`mermaid\ngraph TD;\nA-->B;\n\`\`\``;
+- For charts/graphs/shapes, use Mermaid syntax wrapped in \`\`\`mermaid \`\`\`. Example: \n\`\`\`mermaid\ngraph TD;\nA-->B;\n\`\`\`
+
+[FALLBACK INSTRUCTION]
+If you completely lack knowledge about the requested topic, or are strictly restricted by policies from answering it, you MUST respond ONLY with the exact text: [FALLBACK_REQUIRED]. Do not append any other apologies or context if you use this fallback mechanism.`;
   }
 
   detectQuestionType(content: string): QuestionType {
@@ -260,14 +268,16 @@ All formatting should be natural for Text-To-Speech audio output targeting the l
           .filter(Boolean)
           .join('') || '';
 
-        if (fallbackText) {
-          return { text: fallbackText };
+        if (!fallbackText || fallbackText.includes('[FALLBACK_REQUIRED]')) {
+          console.log('Gemini Audio->Text Fallback returned FALLBACK_REQUIRED. Calling Claude.');
+          return { text: await this.callClaudeFallback(messages, systemPrompt) };
         }
+
+        return { text: fallbackText };
       } catch (err2: any) {
         console.error('Gemini Text Fallback Error:', err2?.message || err2);
+        return { text: await this.callClaudeFallback(messages, systemPrompt) };
       }
-
-      return { text: '현재 AI 음성 서비스에 일시적인 문제가 있어요. 잠시 후 다시 시도해 주세요!' };
     } else {
       // TEXT mode: Gemini 2.5 Flash (supports text + images natively, no OpenAI key needed)
       const geminiMessages: Array<{ role: string; parts: any[] }> = [];
@@ -300,21 +310,74 @@ All formatting should be natural for Text-To-Speech audio output targeting the l
         lastParts.push({ inlineData: { mimeType, data: base64 } });
       }
 
-      const textResponse = await this.gemini.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          ...geminiMessages,
-          { role: 'user', parts: lastParts },
-        ],
-        config: { systemInstruction: systemPrompt },
+      try {
+        const textResponse = await this.gemini.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [
+            ...geminiMessages,
+            { role: 'user', parts: lastParts },
+          ],
+          config: { systemInstruction: systemPrompt },
+        });
+
+        const text = textResponse.candidates?.[0]?.content?.parts
+          ?.map((p: any) => p.text)
+          .filter(Boolean)
+          .join('') || '';
+
+        if (!text || text.includes('[FALLBACK_REQUIRED]')) {
+          console.log('Gemini returned FALLBACK_REQUIRED. Falling back to Claude.');
+          return { text: await this.callClaudeFallback(messages, systemPrompt) };
+        }
+
+        return { text };
+      } catch (err: any) {
+        console.error('Gemini API Error, falling back to Claude:', err?.message || err);
+        return { text: await this.callClaudeFallback(messages, systemPrompt) };
+      }
+    }
+  }
+
+  private async callClaudeFallback(
+    messages: Array<{ role: 'user' | 'assistant'; content: string; attachmentUrl?: string }>,
+    systemPrompt: string
+  ): Promise<string> {
+    try {
+      const claudeMessages: any[] = [];
+      let lastRole = '';
+
+      for (const m of messages) {
+        const role = m.role;
+        if (role === lastRole) continue;
+        const contentBlock: any[] = [];
+
+        if (m.attachmentUrl?.startsWith('data:')) {
+          const [header, base64] = m.attachmentUrl.split(',');
+          let mimeType = header.replace('data:', '').replace(';base64', '') as any;
+          if (mimeType === 'image/jpg') mimeType = 'image/jpeg';
+          contentBlock.push({ type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } });
+        }
+        if (m.content) {
+          contentBlock.push({ type: 'text', text: m.content });
+        }
+
+        if (contentBlock.length > 0) {
+          claudeMessages.push({ role, content: contentBlock });
+          lastRole = role;
+        }
+      }
+
+      const response = await this.anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20240620',
+        max_tokens: 2000,
+        system: systemPrompt,
+        messages: claudeMessages,
       });
 
-      const text = textResponse.candidates?.[0]?.content?.parts
-        ?.map((p: any) => p.text)
-        .filter(Boolean)
-        .join('') || '죄송해, 잠깐 문제가 생겼어.';
-
-      return { text };
+      return (response.content[0] as any).text || '죄송해, 구글과 클로드 AI 모두 잠시 문제가 생겼어.';
+    } catch (err: any) {
+      console.error('Claude Fallback Error:', err?.message || err);
+      return '현재 AI 엔진(Gemma 및 Claude)에 모두 일시적인 문제가 생겼어. 잠시 후 다시 시도해줘!';
     }
   }
 }
